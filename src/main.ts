@@ -492,16 +492,16 @@ class NinjaTemple extends Phaser.Scene {
     const y = hero.sprite.y - 15;
     if (hero.id === 'tosia') {
       // Tosia: short, responsive katana slash with a forward-facing hit arc.
-      const arc = this.add.graphics().setDepth(13);
       const center = hero.sprite.x + hero.facing * 15;
+      const arc = this.add.graphics({ x: center, y }).setDepth(13);
       const angle = hero.facing > 0 ? 0 : Math.PI;
       arc.lineStyle(10, 0xe2fbff, 0.92);
       arc.beginPath();
-      arc.arc(center, y, 91, angle - 0.99, angle + 0.99, false);
+      arc.arc(0, 0, 91, angle - 0.99, angle + 0.99, false);
       arc.strokePath();
       arc.lineStyle(3, 0xffdb80, 0.86);
       arc.beginPath();
-      arc.arc(center, y, 83, angle - 0.99, angle + 0.99, false);
+      arc.arc(0, 0, 83, angle - 0.99, angle + 0.99, false);
       arc.strokePath();
       this.tweens.add({ targets: arc, alpha: 0, scaleX: 1.13, scaleY: 1.13,
         duration: 220, onComplete: () => arc.destroy() });
