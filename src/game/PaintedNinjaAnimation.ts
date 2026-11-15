@@ -27,6 +27,54 @@ const RIGS: Record<'tosia' | 'gucio', CharacterRig> = {
   }
 };
 
+
+/**
+ * Exact arm rotations shared by the rendered atlas and weapon hand sockets.
+ * Keeping these in one place prevents weapons from drifting away during attacks.
+ */
+function limbAngles(id: 'tosia' | 'gucio', frame: string): {
+  footSwing: number; armSwing: number; strike: number;
+} {
+  const run = frame.startsWith('run');
+  const jump = frame.startsWith('jump');
+  const attack = frame.startsWith('attack');
+  const phase = Number(frame.slice(-1));
+  const step = run ? Math.sin(phase / 8 * Math.PI * 2) : 0;
+  const lifting = jump ? (frame.endsWith('0') ? 1 : -1) : 0;
+  const strike = attack
+    ? (id === 'tosia' ? [14, 46, -18] : [9, 33, -16])[phase] ?? 0
+    : 0;
+  return {
+    footSwing: run ? step * 23 : lifting * 12,
+    armSwing: run ? step * 19 : jump ? -11 : 0,
+    strike
+  };
+}
+
+/**
+ * Returns the palm in original 256px illustration coordinates.
+ * These positions rotate around the SAME shoulder pivots as the atlas layers.
+ * Renderers apply frame scale, character facing and tilt afterwards.
+ */
+export function getNinjaHandPose(
+  id: 'tosia' | 'gucio',
+  frame: string,
+  hand: 'left' | 'right'
+): Point {
+  const rig = RIGS[id][hand === 'left' ? 'leftArm' : 'rightArm'];
+  const original: Point = id === 'tosia'
+    ? hand === 'left' ? [80, 184] : [167, 184]
+    : hand === 'left' ? [61, 183] : [165, 183];
+  const { armSwing, strike } = limbAngles(id, frame);
+  const radians = (hand === 'left' ? -armSwing : armSwing + strike) * Math.PI / 180;
+  const dx = original[0] - rig.pivot[0];
+  const dy = original[1] - rig.pivot[1];
+  return [
+    rig.pivot[0] + dx * Math.cos(radians) - dy * Math.sin(radians),
+    rig.pivot[1] + dx * Math.sin(radians) + dy * Math.cos(radians)
+  ];
+}
+
 const FRAME_NAMES = [
   'idle0', 'idle1', 'idle2', 'idle3',
   'run0', 'run1', 'run2', 'run3', 'run4', 'run5', 'run6', 'run7',
@@ -96,19 +144,7 @@ function drawFrame(
     return;
   }
 
-  const run = name.startsWith('run');
-  const jump = name.startsWith('jump');
-  const attack = name.startsWith('attack');
-  const step = run ? Math.sin(Number(name.slice(-1)) / 8 * Math.PI * 2) : 0;
-  const lifting = jump ? (name.endsWith('0') ? 1 : -1) : 0;
-  // Nya's sword slash and Lloyd's dual-sword strike have different arm poses.
-  const strike = attack
-    ? (id === 'tosia' ? [14, 46, -18] : [9, 33, -16])[Number(name.slice(-1))]
-    : 0;
-
-  // Exaggerated silhouettes keep leg motion readable at gameplay scale (108px).
-  const footSwing = run ? step * 23 : lifting * 12;
-  const armSwing = run ? step * 19 : jump ? -11 : 0;
+  const { footSwing, armSwing, strike } = limbAngles(id, name);
   drawRotated(ctx, parts.leftFoot, rig.leftFoot.pivot, footSwing);
   drawRotated(ctx, parts.rightFoot, rig.rightFoot.pivot, -footSwing);
   drawRotated(ctx, parts.leftArm, rig.leftArm.pivot, -armSwing);
