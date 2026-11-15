@@ -3,6 +3,8 @@
 ## 0.5.1 — Accessible platforms & dragon seals
 - Skok: większy zasięg (ok. 225 px zamiast 127 px), wybaczanie spóźnionego/wczesnego naciśnięcia (jump buffer i coyote time). Wyższe podesty są jednostronne: można przeskoczyć przez nie od dołu i wylądować na górze.
 - Likwidacja jaskrawej obwódki: kadrowanie i miękkie krawędzie malowanych podestów.
+- Dwie okrągłe płyty naciskowe zastąpione kamiennymi podestami ze świecącymi runami; bez zmian pozycji ani logiki aktywacji.
+- Nieregularna krawędź prawej wyspy zamiast ostrego prostokąta na styku terenu i przepaści.
 - Zamiast płaskich żółtych kółek zbieramy świecące **smocze pieczęcie** (9 sztuk). Tarcze treningowe są teraz zdobionymi tablicami dojo.
 - Logika bramy, współpracy, shurikenów, portalu i liczba przedmiotów bez zmian.
 - Do odbioru wizualnego przez dzieci, przed merge do main.
