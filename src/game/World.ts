@@ -1,6 +1,6 @@
 import {
   Color3, MeshBuilder, Scene, StandardMaterial, Vector3,
-  type AbstractMesh, type Mesh
+  type Mesh
 } from '@babylonjs/core';
 import { material } from './materials';
 import { PLATE_RADIUS, type PlayerId } from './constants';
