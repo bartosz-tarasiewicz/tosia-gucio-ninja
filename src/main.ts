@@ -1,6 +1,7 @@
 import './styles.css';
 import Phaser from 'phaser';
 import { getNinjaHandPose, prepareNinjaFrameAtlas } from './game/PaintedNinjaAnimation';
+import { prepareGreenNinjaOutfit } from './game/ElementalCostume';
 
 type PlayerId = 'tosia' | 'gucio';
 type HandPoint = { x: number; y: number };
@@ -138,6 +139,7 @@ class NinjaTemple extends Phaser.Scene {
     // Create actual animation frames from the already-approved painted artwork.
     // The generated atlases include distinct leg/arm positions for movement,
     // jumping and attacks, and are prepared once at scene creation.
+    prepareGreenNinjaOutfit(this);
     prepareNinjaFrameAtlas(this, 'tosia');
     prepareNinjaFrameAtlas(this, 'gucio');
     this.heroes = [this.addHero('tosia', 112, 480), this.addHero('gucio', 188, 480)];
