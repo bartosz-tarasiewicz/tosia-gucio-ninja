@@ -30,14 +30,14 @@ export class NinjaGame {
     this.scene.ambientColor = Color3.FromHexString('#c5d8ce');
 
     const light = new HemisphericLight('ambient', new Vector3(0, 1, 0), this.scene);
-    light.intensity = 0.85;
+    light.intensity = 1.0;
     light.groundColor = Color3.FromHexString('#71878a');
     const sun = new DirectionalLight('sun', new Vector3(-0.45, -1, 0.25), this.scene);
-    sun.intensity = 0.9;
+    sun.intensity = 1.15;
     sun.diffuse = Color3.FromHexString('#ffedbd');
 
-    this.camera = new FreeCamera('camera', new Vector3(0, 18, -23), this.scene);
-    this.camera.fov = 0.78;
+    this.camera = new FreeCamera('camera', new Vector3(0, 15, -20), this.scene);
+    this.camera.fov = 0.72;
     this.camera.minZ = 0.1;
     this.camera.maxZ = 120;
     this.camera.inputs.clear();
@@ -112,7 +112,7 @@ export class NinjaGame {
     const middleX = (tosia.root.position.x + gucio.root.position.x) / 2;
     const middleZ = (tosia.root.position.z + gucio.root.position.z) / 2;
     const center = new Vector3(middleX, 0.5, middleZ + 3.2);
-    const desiredCamera = center.add(new Vector3(0, 17.8, -22.5));
+    const desiredCamera = center.add(new Vector3(0, 15.0, -19.0));
     const factor = Math.min(1, dt * 2.5);
     this.camera.position = Vector3.Lerp(this.camera.position, desiredCamera, factor);
     this.camera.setTarget(Vector3.Lerp(this.camera.getTarget(), center, factor));
