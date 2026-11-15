@@ -5,6 +5,7 @@ import {
 import { Character } from './Character';
 import { Input } from './Input';
 import { World } from './World';
+import { decorateTemple } from './TempleDecor';
 import { BRIDGE_HALF_WIDTH, GATE_Z, PLAYER_RADIUS, PLATE_RADIUS } from './constants';
 
 export class NinjaGame {
@@ -43,6 +44,7 @@ export class NinjaGame {
     this.scene.activeCamera = this.camera;
 
     this.world = new World(this.scene);
+    decorateTemple(this.scene);
     this.heroes = [
       new Character(this.scene, 'tosia', new Vector3(-2.3, 0, -8.7)),
       new Character(this.scene, 'gucio', new Vector3(2.3, 0, -8.7))
