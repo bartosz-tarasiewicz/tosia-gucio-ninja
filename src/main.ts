@@ -175,6 +175,15 @@ class NinjaTemple extends Phaser.Scene {
     this.createPlatformArtwork(x, y, width, height);
     const collider = this.platforms.create(x, y, 'pixel') as Phaser.Physics.Arcade.Image;
     collider.setDisplaySize(width, height).refreshBody().setVisible(false);
+    if (height < 100) {
+      // One-way elevated ledges: the ninja can jump through their underside
+      // and land on top. Full solid collision previously trapped both players
+      // below the first overhanging platform, even after increasing jump height.
+      const body = collider.body as Phaser.Physics.Arcade.StaticBody;
+      body.checkCollision.down = false;
+      body.checkCollision.left = false;
+      body.checkCollision.right = false;
+    }
   }
 
   private createPlatformArtwork(x: number, y: number, width: number, height: number): Phaser.GameObjects.Graphics | Phaser.GameObjects.Image | Phaser.GameObjects.TileSprite {
