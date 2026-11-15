@@ -22,7 +22,7 @@ class NinjaTemple extends Phaser.Scene {
   private targets: Target[] = [];
   private plates: Phaser.GameObjects.Image[] = [];
   private bridge?: Phaser.Physics.Arcade.Image;
-  private bridgeArtwork?: Phaser.GameObjects.Graphics | Phaser.GameObjects.Image | Phaser.GameObjects.TileSprite | Phaser.GameObjects.Container;
+  private bridgeArtwork?: Phaser.GameObjects.Image;
   private gateOpen = false;
   private ended = false;
   private coinCount = 0;
@@ -46,6 +46,7 @@ class NinjaTemple extends Phaser.Scene {
     this.load.svg('dragon-seal', '/art/v05/dragon-seal.svg', { width: 80, height: 96 });
     this.load.svg('dojo-target', '/art/v05/dojo-target.svg', { width: 100, height: 112 });
     this.load.svg('rune-pedestal', '/art/v05/rune-pedestal.svg', { width: 160, height: 92 });
+    this.load.svg('ancient-bridge', '/art/v05/ancient-bridge.svg', { width: 320, height: 160 });
     this.load.svg('tosia', '/art/tosia.svg', { width: 116, height: 146 });
     this.load.svg('gucio', '/art/gucio.svg', { width: 116, height: 146 });
     this.load.svg('tosia-jump', '/art/tosia-jump.svg', { width: 116, height: 146 });
@@ -77,9 +78,11 @@ class NinjaTemple extends Phaser.Scene {
     this.addPlatform(1530, 391, 310, 32);
     this.addPlatform(1880, 475, 260, 32);
 
-    // Bridge starts locked. Both heroes must stand on distinct rune plates.
-    this.bridgeArtwork = this.createPlatformArtwork(850, GROUND_Y + 50, 260, 100);
-    this.bridgeArtwork.setVisible(false);
+    // Bridge starts locked. It is an actual ancient arch, not a third chunk of
+    // terrain. The artwork overlaps each island by 20px to hide joins.
+    // The SVG's deck is at y=31/160; position it precisely at GROUND_Y.
+    this.bridgeArtwork = this.add.image(850, GROUND_Y + 46, 'ancient-bridge')
+      .setDisplaySize(300, 150).setDepth(1).setAlpha(0).setVisible(false);
     this.bridge = this.platforms.create(850, GROUND_Y + 50, 'pixel') as Phaser.Physics.Arcade.Image;
     this.bridge.setDisplaySize(260, 100).refreshBody().setVisible(false).disableBody(true, true);
 
@@ -349,7 +352,10 @@ class NinjaTemple extends Phaser.Scene {
     this.gateOpen = true;
     this.bridge?.enableBody(false, 850, GROUND_Y + 50, true, true);
     this.bridge?.setVisible(false);
-    this.bridgeArtwork?.setVisible(true);
+    if (this.bridgeArtwork) {
+      this.bridgeArtwork.setVisible(true);
+      this.tweens.add({ targets: this.bridgeArtwork, alpha: 1, duration: 400, ease: 'Sine.easeOut' });
+    }
     for (const plate of this.plates) plate.setTint(0xb9ffe5);
     if (this.instruction) this.instruction.textContent = 'Most odblokowany! Wspólnie dotrzyjcie do magicznego portalu.';
     this.cameras.main.flash(360, 91, 246, 196, false);
