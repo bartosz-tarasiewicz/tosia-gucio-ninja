@@ -13,6 +13,8 @@ const GROUND_Y = 607;
 const JUMP_VELOCITY = -720;
 const COYOTE_TIME_MS = 115;
 const JUMP_BUFFER_MS = 135;
+// A shared camera cannot keep both ninjas visible once they are over 1280px apart.
+const MAX_PARTY_DISTANCE = 980;
 const PALETTE = { rock: 0x172c43, grass: 0x62bf52, grassLight: 0x9be46d, stone: 0x31576a, gold: 0xffd46c };
 
 class NinjaTemple extends Phaser.Scene {
@@ -315,7 +317,23 @@ class NinjaTemple extends Phaser.Scene {
         this.lastAttack[hero.id] = time;
         this.attack(hero);
       }
-      if (hero.sprite.y > 850) this.resetHero(hero);
+      // Respawn before the ninja disappears below the visible playfield.
+      if (hero.sprite.y > 740) this.resetHero(hero);
+    }
+
+    // Keep both children in the shared camera. Without this soft tether the
+    // camera follows the midpoint and can show empty scenery while both
+    // ninjas are outside opposite screen edges.
+    const [tosia, gucio] = this.heroes;
+    const separation = tosia.sprite.x - gucio.sprite.x;
+    if (Math.abs(separation) > MAX_PARTY_DISTANCE) {
+      const excess = (Math.abs(separation) - MAX_PARTY_DISTANCE) / 2;
+      const sign = Math.sign(separation);
+      tosia.sprite.x -= sign * excess;
+      gucio.sprite.x += sign * excess;
+      // Stop outward drift while players are holding opposite directions.
+      if (sign * tosia.sprite.body!.velocity.x > 0) tosia.sprite.setVelocityX(0);
+      if (sign * gucio.sprite.body!.velocity.x < 0) gucio.sprite.setVelocityX(0);
     }
 
     // Simultaneous occupancy: no permanent gate state until both cooperate.
