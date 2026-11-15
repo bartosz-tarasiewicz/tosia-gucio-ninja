@@ -4,11 +4,15 @@ import Phaser from 'phaser';
 type PlayerId = 'tosia' | 'gucio';
 type Controls = { left: Phaser.Input.Keyboard.Key; right: Phaser.Input.Keyboard.Key; jump: Phaser.Input.Keyboard.Key; attack: Phaser.Input.Keyboard.Key };
 type Hero = { id: PlayerId; sprite: Phaser.Physics.Arcade.Sprite; controls: Controls; spawnX: number; spawnY: number; facing: number };
-type Coin = { sprite: Phaser.GameObjects.Arc; x: number; y: number; collected: boolean };
-type Target = { x: number; y: number; body: Phaser.GameObjects.Arc; hit: boolean };
+type Coin = { sprite: Phaser.GameObjects.Image; x: number; y: number; collected: boolean };
+type Target = { x: number; y: number; body: Phaser.GameObjects.Image; hit: boolean };
 
 const WORLD_WIDTH = 2350;
 const GROUND_Y = 607;
+// Max jump height: ~225 px at gravity 1150. Previously 127 px made the first ledge unreachable.
+const JUMP_VELOCITY = -720;
+const COYOTE_TIME_MS = 115;
+const JUMP_BUFFER_MS = 135;
 const PALETTE = { rock: 0x172c43, grass: 0x62bf52, grassLight: 0x9be46d, stone: 0x31576a, gold: 0xffd46c };
 
 class NinjaTemple extends Phaser.Scene {
@@ -23,6 +27,8 @@ class NinjaTemple extends Phaser.Scene {
   private ended = false;
   private coinCount = 0;
   private lastAttack: Record<PlayerId, number> = { tosia: 0, gucio: 0 };
+  private lastGrounded: Record<PlayerId, number> = { tosia: -Infinity, gucio: -Infinity };
+  private queuedJump: Record<PlayerId, number> = { tosia: -Infinity, gucio: -Infinity };
   private hud?: HTMLElement;
   private instruction?: HTMLElement;
 
@@ -37,6 +43,8 @@ class NinjaTemple extends Phaser.Scene {
     this.load.image('painted-ground', '/art/v05/ground.webp');
     this.load.image('painted-tosia', '/art/v05/tosia.webp');
     this.load.image('painted-gucio', '/art/v05/gucio.webp');
+    this.load.svg('dragon-seal', '/art/v05/dragon-seal.svg', { width: 80, height: 96 });
+    this.load.svg('dojo-target', '/art/v05/dojo-target.svg', { width: 100, height: 112 });
     this.load.svg('tosia', '/art/tosia.svg', { width: 116, height: 146 });
     this.load.svg('gucio', '/art/gucio.svg', { width: 116, height: 146 });
     this.load.svg('tosia-jump', '/art/tosia-jump.svg', { width: 116, height: 146 });
@@ -56,6 +64,7 @@ class NinjaTemple extends Phaser.Scene {
     // Parallax layer: light atmospheric mist, independent of collision.
     this.add.rectangle(1170, 575, WORLD_WIDTH, 160, 0x90d7c6, 0.06).setDepth(-10);
     this.prepareGroundStrip();
+    this.prepareFloatingPlatformArt();
     this.platforms = this.physics.add.staticGroup();
 
     this.addPlatform(360, GROUND_Y + 50, 720, 100);
@@ -80,13 +89,12 @@ class NinjaTemple extends Phaser.Scene {
     }
 
     for (const [x, y] of [[135, 551], [285, 429], [490, 321], [590, 548], [1050, 550], [1225, 443], [1550, 344], [1805, 420], [2020, 544]]) {
-      const coin = this.add.circle(x, y, 13, PALETTE.gold).setStrokeStyle(4, 0xfff0a5).setDepth(8);
-      this.coins.push({ sprite: coin, x, y, collected: false });
+      const seal = this.add.image(x, y, 'dragon-seal').setDisplaySize(44, 52).setDepth(8);
+      this.coins.push({ sprite: seal, x, y, collected: false });
     }
 
     for (const [x, y] of [[525, 315], [1520, 334]]) {
-      const target = this.add.circle(x, y, 24, 0x933d52).setStrokeStyle(7, 0xf5d389).setDepth(7);
-      this.add.circle(x, y, 10, 0xffeeac).setDepth(8);
+      const target = this.add.image(x, y, 'dojo-target').setDisplaySize(62, 70).setDepth(7);
       this.targets.push({ x, y, body: target, hit: false });
     }
 
@@ -134,6 +142,35 @@ class NinjaTemple extends Phaser.Scene {
     texture.refresh();
   }
 
+  /**
+   * Trim the artificial bright edge from the source platform render.
+   * The soft alpha at the side corners blends its rocky silhouette into the
+   * landscape instead of showing an opaque rectangular outline.
+   */
+  private prepareFloatingPlatformArt(): void {
+    if (!this.textures.exists('painted-platform')) return;
+    const source = this.textures.get('painted-platform').getSourceImage() as HTMLImageElement;
+    const sw = source.naturalWidth || source.width;
+    const sh = source.naturalHeight || source.height;
+    if (sw < 48 || sh < 32) return;
+    const image = this.textures.createCanvas('painted-platform-soft', 320, 144);
+    if (!image) return;
+    const ctx = image.getContext();
+    ctx.clearRect(0, 0, 320, 144);
+    // Cropping excludes the neon rim and the empty padded edges of the export.
+    ctx.drawImage(source, sw * 0.07, sh * 0.06, sw * 0.86, sh * 0.78, 0, 0, 320, 144);
+    ctx.globalCompositeOperation = 'destination-in';
+    const sides = ctx.createLinearGradient(0, 0, 320, 0);
+    sides.addColorStop(0, 'rgba(0,0,0,0)');
+    sides.addColorStop(0.05, '#000');
+    sides.addColorStop(0.95, '#000');
+    sides.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = sides;
+    ctx.fillRect(0, 0, 320, 144);
+    ctx.globalCompositeOperation = 'source-over';
+    image.refresh();
+  }
+
   private addPlatform(x: number, y: number, width: number, height: number): void {
     this.createPlatformArtwork(x, y, width, height);
     const collider = this.platforms.create(x, y, 'pixel') as Phaser.Physics.Arcade.Image;
@@ -147,10 +184,11 @@ class NinjaTemple extends Phaser.Scene {
       const top = y - height / 2;
       return this.add.tileSprite(x, top + 56, width, 112, 'painted-ground-strip').setDepth(0);
     }
-    const painted = height >= 100 ? 'painted-ground' : 'painted-platform';
+    const painted = height >= 100 ? 'painted-ground'
+      : (this.textures.exists('painted-platform-soft') ? 'painted-platform-soft' : 'painted-platform');
     if (this.textures.exists(painted)) {
       // Align the painted moss edge with the invisible physics surface.
-      const artHeight = height >= 100 ? Math.max(height + 62, width * 0.25) : Math.max(height + 85, width * 0.39);
+      const artHeight = height >= 100 ? Math.max(height + 62, width * 0.25) : Math.max(height + 64, width * 0.35);
       const top = y - height / 2;
       return this.add.image(x, top - 6 + artHeight / 2, painted)
         .setDisplaySize(width, artHeight).setDepth(0);
@@ -203,7 +241,15 @@ class NinjaTemple extends Phaser.Scene {
         hero.facing = axis;
         hero.sprite.setFlipX(axis < 0);
       }
-      if (Phaser.Input.Keyboard.JustDown(jump) && body.blocked.down) hero.sprite.setVelocityY(-540);
+      // A forgiving jump, plus coyote time and input buffering for two kids on one keyboard.
+      if (body.blocked.down || body.touching.down) this.lastGrounded[hero.id] = time;
+      if (Phaser.Input.Keyboard.JustDown(jump)) this.queuedJump[hero.id] = time;
+      if (time - this.queuedJump[hero.id] <= JUMP_BUFFER_MS
+          && time - this.lastGrounded[hero.id] <= COYOTE_TIME_MS) {
+        hero.sprite.setVelocityY(JUMP_VELOCITY);
+        this.queuedJump[hero.id] = -Infinity;
+        this.lastGrounded[hero.id] = -Infinity;
+      }
       const jumping = !body.blocked.down;
       if (!this.textures.exists(`painted-${hero.id}`)) {
         hero.sprite.setTexture(jumping ? `${hero.id}-jump` : hero.id);
@@ -226,7 +272,7 @@ class NinjaTemple extends Phaser.Scene {
     for (const coin of this.coins) {
       if (coin.collected) continue;
       coin.sprite.y = coin.y + Math.sin(time / 300 + coin.x) * 5;
-      coin.sprite.setScale(1 + Math.sin(time / 240 + coin.x) * 0.08);
+      coin.sprite.setScale(0.55 + Math.sin(time / 260 + coin.x) * 0.022);
       if (this.heroes.some(hero => Phaser.Math.Distance.Between(hero.sprite.x, hero.sprite.y, coin.x, coin.sprite.y) < 51)) {
         coin.collected = true;
         coin.sprite.destroy();
@@ -270,14 +316,14 @@ class NinjaTemple extends Phaser.Scene {
         shuriken.destroy();
         if (nearby && !nearby.t.hit) {
           nearby.t.hit = true;
-          nearby.t.body.setFillStyle(0x43dba1);
+          nearby.t.body.setTint(0x79f2b5);
           this.refreshHud();
         }
       } });
   }
 
   private refreshHud(): void {
-    if (this.hud) this.hud.textContent = `✦ ${this.coinCount}/9   🎯 ${this.targets.filter(t => t.hit).length}/2`;
+    if (this.hud) this.hud.textContent = `💠 ${this.coinCount}/9   🎯 ${this.targets.filter(t => t.hit).length}/2`;
   }
 
   private win(): void {
