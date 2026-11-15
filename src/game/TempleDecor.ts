@@ -1,4 +1,4 @@
-import { Color3, MeshBuilder, Scene, StandardMaterial, Vector3 } from '@babylonjs/core';
+import { MeshBuilder, Scene, StandardMaterial, Vector3 } from '@babylonjs/core';
 import { material } from './materials';
 
 /** Decorative meshes only: no collision or gameplay changes. */
