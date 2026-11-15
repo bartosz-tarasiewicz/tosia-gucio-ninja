@@ -344,8 +344,11 @@ class NinjaTemple extends Phaser.Scene {
       const squash = jumping ? 0.96 : running ? 1 - Math.sin(cycle * 2) * 0.014 : 1;
       visual.setScale((visual.width > 150 ? 108 : 97) / visual.width * squash,
         (visual.height > 160 ? 152 : 123) / visual.height * stretch);
+      const attacking = time - this.lastAttack[hero.id] < 230;
+      const attackLean = attacking ? Math.sin((time - this.lastAttack[hero.id]) / 230 * Math.PI) * 10 : 0;
       visual.setAngle(jumping ? hero.facing * (body.velocity.y < 0 ? -7 : 5)
-        : running ? Math.sin(cycle) * 3.5 : Math.sin(time * 0.002) * 0.9);
+        : running ? Math.sin(cycle) * 3.5 - hero.facing * attackLean
+          : Math.sin(time * 0.002) * 0.9 - hero.facing * attackLean);
       // Bottom anchoring removes the apparent floating from sprite/body offset.
       visual.setPosition(hero.sprite.x, body.bottom + (running ? runBob : 0) + 2);
       if (Phaser.Input.Keyboard.JustDown(attack) && time - this.lastAttack[hero.id] > 240) {
