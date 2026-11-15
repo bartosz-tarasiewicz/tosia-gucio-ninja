@@ -3,13 +3,14 @@ import Phaser from 'phaser';
 import { prepareNinjaFrameAtlas } from './game/PaintedNinjaAnimation';
 
 type PlayerId = 'tosia' | 'gucio';
-type Controls = { left: Phaser.Input.Keyboard.Key; right: Phaser.Input.Keyboard.Key; jump: Phaser.Input.Keyboard.Key; attack: Phaser.Input.Keyboard.Key };
+type Controls = { left: Phaser.Input.Keyboard.Key; right: Phaser.Input.Keyboard.Key; jump: Phaser.Input.Keyboard.Key; attack: Phaser.Input.Keyboard.Key; special: Phaser.Input.Keyboard.Key };
 type Hero = {
   id: PlayerId;
   // Invisible Arcade sprite handles gameplay physics, independent of animation.
   sprite: Phaser.Physics.Arcade.Sprite;
   visual: Phaser.GameObjects.Image;
   weapon: Phaser.GameObjects.Image;
+  offhandWeapon?: Phaser.GameObjects.Image;
   controls: Controls;
   spawnX: number;
   spawnY: number;
@@ -40,6 +41,7 @@ class NinjaTemple extends Phaser.Scene {
   private ended = false;
   private coinCount = 0;
   private lastAttack: Record<PlayerId, number> = { tosia: -Infinity, gucio: -Infinity };
+  private lastSpecial: Record<PlayerId, number> = { tosia: -Infinity, gucio: -Infinity };
   private lastGrounded: Record<PlayerId, number> = { tosia: -Infinity, gucio: -Infinity };
   private queuedJump: Record<PlayerId, number> = { tosia: -Infinity, gucio: -Infinity };
   private hud?: HTMLElement;
@@ -319,10 +321,15 @@ class NinjaTemple extends Phaser.Scene {
       .setDisplaySize(hasPainted ? 108 : 97, hasPainted ? 152 : 123)
       .setOrigin(0.5, 1)
       .setDepth(10);
-    const weapon = this.add.image(x, y,
-      id === 'tosia' ? 'weapon-katana' : 'weapon-bow')
-      .setDisplaySize(id === 'tosia' ? 35 : 47, id === 'tosia' ? 78 : 76)
-      .setOrigin(0.5, 0.82).setDepth(12);
+    // Nya and Lloyd both wield blades; Lloyd carries his recognizable dual katanas.
+    const weapon = this.add.image(x, y, 'weapon-katana')
+      .setDisplaySize(34, 78).setOrigin(0.5, 0.82).setDepth(12);
+    const offhandWeapon = id === 'gucio'
+      ? this.add.image(x, y, 'weapon-katana')
+          .setDisplaySize(30, 75).setOrigin(0.5, 0.82)
+          .setTint(0xffe36b).setDepth(11)
+      : undefined;
+    if (id === 'gucio') weapon.setTint(0xffe36b);
     sprite.setVisible(false);
     sprite.setBounce(0);
     sprite.setMaxVelocity(245, 900);
@@ -330,9 +337,9 @@ class NinjaTemple extends Phaser.Scene {
     if (!kb) throw new Error('Brak obsługi klawiatury');
     const key = (name: string): Phaser.Input.Keyboard.Key => kb.addKey(name, false);
     const controls = id === 'tosia'
-      ? { left: key('A'), right: key('D'), jump: key('SPACE'), attack: key('Q') }
-      : { left: key('LEFT'), right: key('RIGHT'), jump: key('ENTER'), attack: key('SHIFT') };
-    return { id, sprite, visual, weapon, controls, spawnX: x, spawnY: y, facing: 1 };
+      ? { left: key('A'), right: key('D'), jump: key('SPACE'), attack: key('Q'), special: key('E') }
+      : { left: key('LEFT'), right: key('RIGHT'), jump: key('ENTER'), attack: key('SHIFT'), special: key('CTRL') };
+    return { id, sprite, visual, weapon, offhandWeapon, controls, spawnX: x, spawnY: y, facing: 1 };
   }
 
   update(time: number): void {
@@ -340,7 +347,7 @@ class NinjaTemple extends Phaser.Scene {
     let waitingForPartner: string | null = null;
     for (const hero of this.heroes) {
       const body = hero.sprite.body as Phaser.Physics.Arcade.Body;
-      const { left, right, jump, attack } = hero.controls;
+      const { left, right, jump, attack, special } = hero.controls;
       const axis = Number(right.isDown) - Number(left.isDown);
       // Each ninja controls only their own movement. If the partner is
       // almost a screen away, stop the ninja moving farther OUTWARD.
@@ -375,7 +382,7 @@ class NinjaTemple extends Phaser.Scene {
       const frameAtlas = `ninja-frames-${hero.id}`;
       const hasFrames = this.textures.exists(frameAtlas);
       const running = Math.abs(body.velocity.x) > 7 && !jumping;
-      const attacking = time - this.lastAttack[hero.id] < 270;
+      const attacking = time - this.lastAttack[hero.id] < 270 || time - this.lastSpecial[hero.id] < 320;
       const cycle = time * 0.017 + (hero.id === 'gucio' ? 1.2 : 0);
       if (hasFrames) {
         if (visual.texture.key !== frameAtlas) visual.setTexture(frameAtlas, 'idle0');
@@ -406,13 +413,21 @@ class NinjaTemple extends Phaser.Scene {
       const weapon = hero.weapon;
       const attackProgress = Phaser.Math.Clamp((time - this.lastAttack[hero.id]) / 270, 0, 1);
       const swing = attacking ? Math.sin(attackProgress * Math.PI) : 0;
-      weapon.setPosition(hero.sprite.x + hero.facing * (hero.id === 'tosia' ? 32 : 34),
-        body.bottom - (hero.id === 'tosia' ? 88 : 91) + runBob);
+      weapon.setPosition(hero.sprite.x + hero.facing * 34, body.bottom - 88 + runBob);
       weapon.setFlipX(hero.facing < 0);
-      weapon.setAngle(hero.facing * (hero.id === 'tosia' ? -18 - swing * 102 : 9 - swing * 14));
-      if (Phaser.Input.Keyboard.JustDown(attack) && time - this.lastAttack[hero.id] > 240) {
+      weapon.setAngle(hero.facing * (-18 - swing * 102));
+      if (hero.offhandWeapon) {
+        hero.offhandWeapon.setPosition(hero.sprite.x - hero.facing * 22, body.bottom - 91 + runBob);
+        hero.offhandWeapon.setFlipX(hero.facing > 0);
+        hero.offhandWeapon.setAngle(hero.facing * (20 + swing * 75));
+      }
+      if (Phaser.Input.Keyboard.JustDown(attack) && time - this.lastAttack[hero.id] > 300) {
         this.lastAttack[hero.id] = time;
         this.attack(hero);
+      }
+      if (Phaser.Input.Keyboard.JustDown(special) && time - this.lastSpecial[hero.id] > 700) {
+        this.lastSpecial[hero.id] = time;
+        this.specialAttack(hero);
       }
       // Respawn before the ninja disappears below the visible playfield.
       if (hero.sprite.y > 740) this.resetHero(hero);
@@ -465,6 +480,7 @@ class NinjaTemple extends Phaser.Scene {
     const body = hero.sprite.body as Phaser.Physics.Arcade.Body;
     hero.visual.setPosition(hero.spawnX, body.bottom + 2);
     hero.weapon.setPosition(hero.spawnX + 32, body.bottom - 89);
+    hero.offhandWeapon?.setPosition(hero.spawnX - 22, body.bottom - 91);
   }
 
   private unlockBridge(): void {
@@ -488,55 +504,72 @@ class NinjaTemple extends Phaser.Scene {
   }
 
   private attack(hero: Hero): void {
-    const x = hero.sprite.x + hero.facing * 35;
+    // Close-range katana attacks, independent of elemental powers.
+    const x = hero.sprite.x + hero.facing * 16;
     const y = hero.sprite.y - 15;
-    if (hero.id === 'tosia') {
-      // Tosia: short, responsive katana slash with a forward-facing hit arc.
-      const center = hero.sprite.x + hero.facing * 15;
-      const arc = this.add.graphics({ x: center, y }).setDepth(13);
-      const angle = hero.facing > 0 ? 0 : Math.PI;
-      arc.lineStyle(10, 0xe2fbff, 0.92);
-      arc.beginPath();
-      arc.arc(0, 0, 91, angle - 0.99, angle + 0.99, false);
-      arc.strokePath();
-      arc.lineStyle(3, 0xffdb80, 0.86);
-      arc.beginPath();
-      arc.arc(0, 0, 83, angle - 0.99, angle + 0.99, false);
-      arc.strokePath();
-      this.tweens.add({ targets: arc, alpha: 0, scaleX: 1.13, scaleY: 1.13,
-        duration: 220, onComplete: () => arc.destroy() });
-      for (const target of this.targets) {
-        if (target.hit) continue;
-        const dx = target.x - hero.sprite.x;
-        const dy = target.y - y;
-        if (dx * hero.facing >= -7 && dx * hero.facing <= 135 && Math.abs(dy) <= 105) {
-          this.hitTarget(target);
-        }
-      }
-      return;
+    const arc = this.add.graphics({ x, y }).setDepth(13);
+    const angle = hero.facing > 0 ? 0 : Math.PI;
+    const water = hero.id === 'tosia';
+    arc.lineStyle(water ? 10 : 12, water ? 0x9aefff : 0x9bffa4, 0.9);
+    arc.beginPath();
+    arc.arc(0, 0, water ? 91 : 105, angle - 0.92, angle + 0.92, false);
+    arc.strokePath();
+    arc.lineStyle(3, water ? 0xe4fbff : 0xffe36b, 0.85);
+    arc.beginPath();
+    arc.arc(0, 0, water ? 84 : 96, angle - 0.92, angle + 0.92, false);
+    arc.strokePath();
+    this.tweens.add({ targets: arc, alpha: 0, scaleX: 1.14, scaleY: 1.14,
+      duration: 230, onComplete: () => arc.destroy() });
+    for (const target of this.targets) {
+      if (target.hit) continue;
+      const dx = target.x - hero.sprite.x;
+      const dy = target.y - y;
+      if (dx * hero.facing >= -7 && dx * hero.facing <= (water ? 135 : 145)
+          && Math.abs(dy) <= 105) this.hitTarget(target);
     }
+  }
 
-    // Gucio: a real visible arrow with much longer range than the katana.
-    const nearest = this.targets.filter(target => !target.hit)
-      .map(target => ({ target,
-        distance: Phaser.Math.Distance.Between(x, y, target.x, target.y) }))
-      .filter(entry => entry.distance <= 560 && (entry.target.x - x) * hero.facing >= 0)
-      .sort((a, b) => a.distance - b.distance)[0];
-    const destination = nearest ? { x: nearest.target.x, y: nearest.target.y }
-      : { x: x + hero.facing * 480, y: y - 22 };
-    const arrow = this.add.container(x, y).setDepth(14);
-    arrow.add([
-      this.add.rectangle(0, 0, 34, 4, 0xffe5a1),
-      this.add.triangle(21, 0, -6, -8, -6, 8, 11, 0, 0xe6f9ff),
-      this.add.triangle(-21, 0, -7, -9, -7, 9, 8, 0, 0x8adee0)
-    ]);
-    arrow.setRotation(Phaser.Math.Angle.Between(x, y, destination.x, destination.y));
-    const flight = Phaser.Math.Clamp(Phaser.Math.Distance.Between(x, y,
-      destination.x, destination.y) * 1.12, 180, 490);
-    this.tweens.add({ targets: arrow, x: destination.x, y: destination.y,
-      duration: flight, onComplete: () => {
-        arrow.destroy();
-        if (nearest) this.hitTarget(nearest.target);
+  private specialAttack(hero: Hero): void {
+    const isWater = hero.id === 'tosia';
+    const color = isWater ? 0x65dfff : 0x63f586;
+    const x = hero.sprite.x + hero.facing * 36;
+    const y = hero.sprite.y - 16;
+    // Nya: a flowing water wave. Lloyd: a charged sphere of green energy.
+    const nearby = this.targets.filter(t => !t.hit)
+      .map(target => ({ target, dist: Phaser.Math.Distance.Between(x, y, target.x, target.y) }))
+      .filter(item => item.dist <= (isWater ? 410 : 560)
+        && (item.target.x - x) * hero.facing >= 0)
+      .sort((a, b) => a.dist - b.dist)[0];
+    const destination = nearby ? { x: nearby.target.x, y: nearby.target.y }
+      : { x: x + hero.facing * (isWater ? 380 : 500), y: y - 20 };
+    const projectile = this.add.container(x, y).setDepth(14);
+    if (isWater) {
+      const wave = this.add.graphics();
+      wave.fillStyle(0x82ecff, 0.86);
+      wave.fillEllipse(0, 0, 74, 31);
+      wave.lineStyle(4, 0xe1ffff, 0.9);
+      wave.strokeEllipse(0, 0, 82, 39);
+      wave.fillStyle(0xb8ffff, 0.8);
+      wave.fillCircle(-14, -14, 9);
+      wave.fillCircle(16, 10, 7);
+      projectile.add(wave);
+      projectile.setScale(hero.facing > 0 ? 1 : -1, 1);
+    } else {
+      const halo = this.add.circle(0, 0, 29, color, 0.25);
+      const orb = this.add.circle(0, 0, 18, color, 0.92).setStrokeStyle(4, 0xd9ffe2, 1);
+      const core = this.add.circle(-5, -5, 6, 0xffffff, 0.85);
+      projectile.add([halo, orb, core]);
+      this.tweens.add({ targets: halo, scale: 1.55, alpha: 0.12,
+        duration: 180, yoyo: true, repeat: -1 });
+    }
+    const distance = Phaser.Math.Distance.Between(x, y, destination.x, destination.y);
+    this.tweens.add({ targets: projectile, x: destination.x, y: destination.y,
+      duration: Phaser.Math.Clamp(distance, 200, 520), onComplete: () => {
+        projectile.destroy();
+        if (nearby) this.hitTarget(nearby.target);
+        const burst = this.add.circle(destination.x, destination.y, 22, color, 0.55).setDepth(14);
+        this.tweens.add({ targets: burst, scale: 2.4, alpha: 0, duration: 220,
+          onComplete: () => burst.destroy() });
       } });
   }
 
