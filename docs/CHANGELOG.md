@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0 — Painted Visual Rebuild (art pack)
+- Nowy zestaw ręcznie stylizowanych, ilustracyjnych materiałów WebP: tło fantasy, Tosia i Gucio, roślinne platformy i kamieniste podłoże.
+- Loader wybiera ilustracje z public/art/v05, gdy są dostępne, zachowując fallback graficzny v0.4.
+- Poprawiony interfejs HUD; gra nadal korzysta z Phaser 3 i dotychczasowych mechanik.
+- Asset pack jest binarny i musi zostać dołączony osobno do gałęzi PR przed scaleniem; nie scalać bez assetów.
+- Obowiązuje odbiór wizualny w przeglądarce przez Tosię i Gucia przed wypuszczeniem na main.
+
 ## 0.4.0 — Illustrated Ninja Platformer (nowy kierunek)
 - Nowa gra Phaser 3 2D w tym samym repo. Widok z boku, osobne grafiki SVG ninja i malownicze warstwowe tło świątyni.
 - Sterowanie dla dwóch dzieci na jednej klawiaturze, skoki i shurikeny.
