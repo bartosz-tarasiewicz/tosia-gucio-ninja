@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0 — Illustrated Ninja Platformer (nowy kierunek)
+- Nowa gra Phaser 3 2D w tym samym repo. Widok z boku, osobne grafiki SVG ninja i malownicze warstwowe tło świątyni.
+- Sterowanie dla dwóch dzieci na jednej klawiaturze, skoki i shurikeny.
+- 9 monet, 2 cele treningowe, 2 płyty odblokowujące most i wspólny portal.
+- Poprzednia implementacja 3D zostaje w repo jako archiwalne pliki src/game; nowa gra startuje przez src/main.ts.
+- Pierwszy prototyp wizualny: wymaga testu w przeglądarce i oceny stylu przez dzieci. Grafiki są autorskimi ilustracjami, nie oficjalnymi zasobami LEGO/Ninjago.
+
 ## 0.3.1 – Figurki w stylu LEGO (eksperymentalnie)
 - Szerszy, zwężany tułów i zaokrąglone ramiona oraz dłonie z otwartym uchwytem C.
 - Detale stroju, opaska i nakrycie głowy, kolorowe oznaczenia postaci.
