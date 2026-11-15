@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.4 — Animacja klatkowa i niezależne sterowanie (kandydat do testów)
+- Stary mechanizm rozdzielania postaci przesuwał oboje ninja, gdy dzieliło ich ponad 980px; zastąpiłem go ograniczeniem prędkości wyłącznie gracza oddalającego się od partnera.
+- Przy granicy wspólnego ekranu wyświetla się komunikat „Poczekaj na Tosię/Gucia!”, bez przestawiania drugiej postaci.
+- Powstają osobne klatki idle (4), run (8), jump (2), attack (3) na podstawie zatwierdzonych ilustracji. Ręce i stopy wykonują niewielkie niezależne ruchy z istniejącej grafiki; klatki są generowane tylko raz przy inicjalizacji sceny.
+- Gdy obraz postaci nie jest dostępny, gra zachowuje dotychczasowy awaryjny wygląd.
+- Zmienione wyłącznie animacje i zachowanie współdzielonej kamery; poziom, most i zadania pozostają bez zmian. Do testu lokalnego przed scaleniem.
+
 ## 0.5.3 — Ruch postaci i responsywność
 - Obniżona wysokość skoku: prędkość pionowa -650 zamiast -720 (około 184 px zasięgu zamiast 225 px przy grawitacji 1150).
 - Grafika postaci oddzielona od niewidocznego hitboxa fizycznego: stopy są przytwierdzone do fizycznej linii podłoża.
