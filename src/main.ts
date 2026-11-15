@@ -18,7 +18,7 @@ class NinjaTemple extends Phaser.Scene {
   private targets: Target[] = [];
   private plates: Phaser.GameObjects.Arc[] = [];
   private bridge?: Phaser.Physics.Arcade.Image;
-  private bridgeArtwork?: Phaser.GameObjects.Graphics | Phaser.GameObjects.Image;
+  private bridgeArtwork?: Phaser.GameObjects.Graphics | Phaser.GameObjects.Image | Phaser.GameObjects.TileSprite;
   private gateOpen = false;
   private ended = false;
   private coinCount = 0;
@@ -55,6 +55,7 @@ class NinjaTemple extends Phaser.Scene {
 
     // Parallax layer: light atmospheric mist, independent of collision.
     this.add.rectangle(1170, 575, WORLD_WIDTH, 160, 0x90d7c6, 0.06).setDepth(-10);
+    this.prepareGroundStrip();
     this.platforms = this.physics.add.staticGroup();
 
     this.addPlatform(360, GROUND_Y + 50, 720, 100);
@@ -114,13 +115,38 @@ class NinjaTemple extends Phaser.Scene {
     for (const h of this.heroes ?? []) h.sprite.setVelocityX(0);
   };
 
+  /**
+   * The v0.5 ground image was extracted from an illustrated scene. Its lower edge
+   * includes unrelated foreground/UI details, and stretching the whole image over
+   * long ground sections creates visible rectangular seams.
+   * Build a short, repeatable strip from the clean moss-and-rock center instead.
+   */
+  private prepareGroundStrip(): void {
+    if (!this.textures.exists('painted-ground')) return;
+    const source = this.textures.get('painted-ground').getSourceImage() as HTMLImageElement;
+    const texture = this.textures.createCanvas('painted-ground-strip', 448, 112);
+    if (!texture) return;
+    const ctx = texture.getContext();
+    ctx.clearRect(0, 0, 448, 112);
+    // Exclude pink foreground flowers (left) and the UI from the source's bottom.
+    // x: 206..656, y: 29..141 of the original 667x189 image.
+    ctx.drawImage(source, 206, 29, 448, 112, 0, 0, 448, 112);
+    texture.refresh();
+  }
+
   private addPlatform(x: number, y: number, width: number, height: number): void {
     this.createPlatformArtwork(x, y, width, height);
     const collider = this.platforms.create(x, y, 'pixel') as Phaser.Physics.Arcade.Image;
     collider.setDisplaySize(width, height).refreshBody().setVisible(false);
   }
 
-  private createPlatformArtwork(x: number, y: number, width: number, height: number): Phaser.GameObjects.Graphics | Phaser.GameObjects.Image {
+  private createPlatformArtwork(x: number, y: number, width: number, height: number): Phaser.GameObjects.Graphics | Phaser.GameObjects.Image | Phaser.GameObjects.TileSprite {
+    // Long right-hand ground must NOT stretch the screenshot-like foreground
+    // asset: it caused the large blurred rectangle seen in the v0.5 review.
+    if (height >= 100 && width > 900 && this.textures.exists('painted-ground-strip')) {
+      const top = y - height / 2;
+      return this.add.tileSprite(x, top + 56, width, 112, 'painted-ground-strip').setDepth(0);
+    }
     const painted = height >= 100 ? 'painted-ground' : 'painted-platform';
     if (this.textures.exists(painted)) {
       // Align the painted moss edge with the invisible physics surface.
