@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.1 — Accessible platforms & dragon seals
+- Skok: większy zasięg (ok. 225 px zamiast 127 px), wybaczanie spóźnionego/wczesnego naciśnięcia (jump buffer i coyote time). Dwa najwyższe stopnie można osiągnąć, skacząc po kolei.
+- Likwidacja jaskrawej obwódki: kadrowanie i miękkie krawędzie malowanych podestów.
+- Zamiast płaskich żółtych kółek zbieramy świecące **smocze pieczęcie** (9 sztuk). Tarcze treningowe są teraz zdobionymi tablicami dojo.
+- Logika bramy, współpracy, shurikenów, portalu i liczba przedmiotów bez zmian.
+- Do odbioru wizualnego przez dzieci, przed merge do main.
+
 ## 0.5.0 — Painted Visual Rebuild (art pack)
 - Nowy zestaw ręcznie stylizowanych, ilustracyjnych materiałów WebP: tło fantasy, Tosia i Gucio, roślinne platformy i kamieniste podłoże.
 - Fix: długie sekcje ziemi korzystają z oczyszczonego, powtarzanego wycinka faktury zamiast rozciągniętej ilustracji z widocznym prostokątnym artefaktem.
