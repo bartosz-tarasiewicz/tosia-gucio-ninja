@@ -315,7 +315,16 @@ class NinjaTemple extends Phaser.Scene {
       const body = hero.sprite.body as Phaser.Physics.Arcade.Body;
       const { left, right, jump, attack } = hero.controls;
       const axis = Number(right.isDown) - Number(left.isDown);
-      hero.sprite.setVelocityX(axis * 240);
+      // Each ninja controls only their own movement. If the partner is
+      // almost a screen away, stop the ninja moving farther OUTWARD.
+      // Never change the stationary partner's position (old tether bug).
+      const partner = this.heroes.find(other => other.id !== hero.id)!;
+      const distance = hero.sprite.x - partner.sprite.x;
+      const movingAway = axis !== 0 && Math.sign(axis) === Math.sign(distance);
+      const available = Math.max(0, MAX_PARTY_DISTANCE - Math.abs(distance));
+      const maxOutwardSpeed = available * 1000 / Math.max(1, this.game.loop.delta);
+      const speed = movingAway ? Math.min(240, maxOutwardSpeed) : 240;
+      hero.sprite.setVelocityX(axis * speed);
       if (axis) {
         hero.facing = axis;
         hero.visual.setFlipX(axis < 0);
@@ -359,20 +368,9 @@ class NinjaTemple extends Phaser.Scene {
       if (hero.sprite.y > 740) this.resetHero(hero);
     }
 
-    // Keep both children in the shared camera. Without this soft tether the
-    // camera follows the midpoint and can show empty scenery while both
-    // ninjas are outside opposite screen edges.
-    const [tosia, gucio] = this.heroes;
-    const separation = tosia.sprite.x - gucio.sprite.x;
-    if (Math.abs(separation) > MAX_PARTY_DISTANCE) {
-      const excess = (Math.abs(separation) - MAX_PARTY_DISTANCE) / 2;
-      const sign = Math.sign(separation);
-      tosia.sprite.x -= sign * excess;
-      gucio.sprite.x += sign * excess;
-      // Stop outward drift while players are holding opposite directions.
-      if (sign * tosia.sprite.body!.velocity.x > 0) tosia.sprite.setVelocityX(0);
-      if (sign * gucio.sprite.body!.velocity.x < 0) gucio.sprite.setVelocityX(0);
-    }
+    // The previous implementation shifted BOTH heroes here whenever their
+    // separation exceeded the limit, so the leading ninja dragged the other.
+    // Movement is now bounded per controller above; no teleporting either hero.
 
     // Simultaneous occupancy: no permanent gate state until both cooperate.
     if (!this.gateOpen) {
