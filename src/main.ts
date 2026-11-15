@@ -1,5 +1,6 @@
 import './styles.css';
 import Phaser from 'phaser';
+import { prepareNinjaFrameAtlas } from './game/PaintedNinjaAnimation';
 
 type PlayerId = 'tosia' | 'gucio';
 type Controls = { left: Phaser.Input.Keyboard.Key; right: Phaser.Input.Keyboard.Key; jump: Phaser.Input.Keyboard.Key; attack: Phaser.Input.Keyboard.Key };
@@ -124,6 +125,11 @@ class NinjaTemple extends Phaser.Scene {
     portal.add([halo, rim, inner]);
     this.tweens.add({ targets: halo, scaleX: 1.13, scaleY: 1.13, alpha: 0.36, yoyo: true, repeat: -1, duration: 1200 });
 
+    // Create actual animation frames from the already-approved painted artwork.
+    // The generated atlases include distinct leg/arm positions for movement,
+    // jumping and attacks, and are prepared once at scene creation.
+    prepareNinjaFrameAtlas(this, 'tosia');
+    prepareNinjaFrameAtlas(this, 'gucio');
     this.heroes = [this.addHero('tosia', 112, 480), this.addHero('gucio', 188, 480)];
     for (const hero of this.heroes) this.physics.add.collider(hero.sprite, this.platforms);
 
@@ -293,7 +299,11 @@ class NinjaTemple extends Phaser.Scene {
     } else sprite.setSize(56, 114).setOffset(30, 20);
     // Do not transform the collision body when animating. Separate artwork
     // remains bottom-aligned with the physics body so feet meet the ground.
-    const visual = this.add.image(x, y, hasPainted ? paintedKey : id)
+    const frameAtlas = `ninja-frames-${id}`;
+    const hasFrameAtlas = this.textures.exists(frameAtlas);
+    const visual = this.add.image(x, y,
+      hasFrameAtlas ? frameAtlas : (hasPainted ? paintedKey : id),
+      hasFrameAtlas ? 'idle0' : undefined)
       .setDisplaySize(hasPainted ? 108 : 97, hasPainted ? 152 : 123)
       .setOrigin(0.5, 1)
       .setDepth(10);
@@ -339,26 +349,38 @@ class NinjaTemple extends Phaser.Scene {
         this.lastGrounded[hero.id] = -Infinity;
       }
       const jumping = !body.blocked.down && !body.touching.down;
-      // Animate the painted illustration independently of collision:
-      // breathing idle, run cadence, airborne lean, and brief attack gesture.
-      // Real articulated frame animations will be a separate art task.
+      // Display animated frames independently from the collision body.
+      // A painted sprite is split into four limb layers when its atlas is built.
       const visual = hero.visual;
-      const sourceKey = this.textures.exists(`painted-${hero.id}`) ? `painted-${hero.id}` : hero.id;
-      if (visual.texture.key !== sourceKey) visual.setTexture(sourceKey);
-      const running = axis !== 0 && !jumping;
-      const cycle = time * 0.019 + (hero.id === 'gucio' ? 1.2 : 0);
-      const runBob = running ? Math.abs(Math.sin(cycle)) * 3.5 : 0;
-      const idleBreath = !jumping && !running ? Math.sin(time * 0.0035) * 0.006 : 0;
-      const stretch = jumping ? 1.045 : running ? 1 + Math.sin(cycle * 2) * 0.022 : 1 + idleBreath;
-      const squash = jumping ? 0.96 : running ? 1 - Math.sin(cycle * 2) * 0.014 : 1;
+      const frameAtlas = `ninja-frames-${hero.id}`;
+      const hasFrames = this.textures.exists(frameAtlas);
+      const running = Math.abs(body.velocity.x) > 7 && !jumping;
+      const attacking = time - this.lastAttack[hero.id] < 270;
+      const cycle = time * 0.017 + (hero.id === 'gucio' ? 1.2 : 0);
+      if (hasFrames) {
+        if (visual.texture.key !== frameAtlas) visual.setTexture(frameAtlas, 'idle0');
+        const animationFrame = attacking
+          ? `attack${Math.min(2, Math.floor((time - this.lastAttack[hero.id]) / 90))}`
+          : jumping
+            ? (body.velocity.y < 0 ? 'jump0' : 'jump1')
+            : running
+              ? `run${Math.floor(time / 75) % 8}`
+              : `idle${Math.floor(time / 320) % 4}`;
+        if (visual.frame.name !== animationFrame) visual.setFrame(animationFrame);
+      } else {
+        const sourceKey = this.textures.exists(`painted-${hero.id}`) ? `painted-${hero.id}` : hero.id;
+        if (visual.texture.key !== sourceKey) visual.setTexture(sourceKey);
+      }
+      const runBob = running ? Math.abs(Math.sin(cycle)) * 2 : 0;
+      const idleBreath = !jumping && !running ? Math.sin(time * 0.0035) * 0.004 : 0;
+      const stretch = jumping ? 1.025 : running ? 1 + Math.sin(cycle * 2) * 0.009 : 1 + idleBreath;
+      const squash = jumping ? 0.98 : running ? 1 - Math.sin(cycle * 2) * 0.007 : 1;
       visual.setScale((visual.width > 150 ? 108 : 97) / visual.width * squash,
         (visual.height > 160 ? 152 : 123) / visual.height * stretch);
-      const attacking = time - this.lastAttack[hero.id] < 230;
-      const attackLean = attacking ? Math.sin((time - this.lastAttack[hero.id]) / 230 * Math.PI) * 10 : 0;
-      visual.setAngle(jumping ? hero.facing * (body.velocity.y < 0 ? -7 : 5)
-        : running ? Math.sin(cycle) * 3.5 - hero.facing * attackLean
-          : Math.sin(time * 0.002) * 0.9 - hero.facing * attackLean);
-      // Bottom anchoring removes the apparent floating from sprite/body offset.
+      const attackLean = attacking ? Math.sin((time - this.lastAttack[hero.id]) / 270 * Math.PI) * 4 : 0;
+      visual.setAngle(jumping ? hero.facing * (body.velocity.y < 0 ? -4 : 3)
+        : running ? Math.sin(cycle) * 1.5 - hero.facing * attackLean
+          : Math.sin(time * 0.002) * 0.5 - hero.facing * attackLean);
       visual.setPosition(hero.sprite.x, body.bottom + (running ? runBob : 0) + 2);
       if (Phaser.Input.Keyboard.JustDown(attack) && time - this.lastAttack[hero.id] > 240) {
         this.lastAttack[hero.id] = time;
