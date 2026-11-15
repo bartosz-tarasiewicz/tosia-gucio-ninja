@@ -1,7 +1,7 @@
 {
   "name": "tosia-gucio-ninja",
   "private": true,
-  "version": "0.3.1",
+  "version": "0.4.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
@@ -10,7 +10,8 @@
     "check": "tsc --noEmit"
   },
   "dependencies": {
-    "@babylonjs/core": "9.36.0"
+    "@babylonjs/core": "9.36.0",
+    "phaser": "3.90.0"
   },
   "devDependencies": {
     "typescript": "7.0.2",
