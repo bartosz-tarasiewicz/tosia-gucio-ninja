@@ -2,6 +2,7 @@
 
 ## 0.5.0 — Painted Visual Rebuild (art pack)
 - Nowy zestaw ręcznie stylizowanych, ilustracyjnych materiałów WebP: tło fantasy, Tosia i Gucio, roślinne platformy i kamieniste podłoże.
+- Fix: długie sekcje ziemi korzystają z oczyszczonego, powtarzanego wycinka faktury zamiast rozciągniętej ilustracji z widocznym prostokątnym artefaktem.
 - Loader wybiera ilustracje z public/art/v05, gdy są dostępne, zachowując fallback graficzny v0.4.
 - Poprawiony interfejs HUD; gra nadal korzysta z Phaser 3 i dotychczasowych mechanik.
 - Asset pack jest binarny i musi zostać dołączony osobno do gałęzi PR przed scaleniem; nie scalać bez assetów.
