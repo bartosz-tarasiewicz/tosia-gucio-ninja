@@ -101,9 +101,9 @@ function drawFrame(
   const attack = name.startsWith('attack');
   const step = run ? Math.sin(Number(name.slice(-1)) / 8 * Math.PI * 2) : 0;
   const lifting = jump ? (name.endsWith('0') ? 1 : -1) : 0;
-  // Sword slash and bow draw require different arm poses.
+  // Nya's sword slash and Lloyd's dual-sword strike have different arm poses.
   const strike = attack
-    ? (id === 'tosia' ? [14, 46, -18] : [-11, -36, -8])[Number(name.slice(-1))]
+    ? (id === 'tosia' ? [14, 46, -18] : [9, 33, -16])[Number(name.slice(-1))]
     : 0;
 
   // Exaggerated silhouettes keep leg motion readable at gameplay scale (108px).
