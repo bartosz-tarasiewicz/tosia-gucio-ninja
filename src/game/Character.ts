@@ -31,6 +31,7 @@ export class Character {
     const skin = material(scene, `${id}-skin`, '#f2c68a');
     const eyes = material(scene, `${id}-eyes`, '#1c2438');
     const belt = material(scene, `${id}-belt`, '#253247');
+    const gold = material(scene, `${id}-gold`, '#f2c65e');
     const steel = material(scene, `${id}-steel`, '#d9e9ed');
     const swordGrip = material(scene, `${id}-sword-grip`, '#483747');
 
@@ -48,8 +49,16 @@ export class Character {
       return node;
     };
     this.body = pivot('body-pivot', 0, 0.98, 0);
-    box('torso', this.body, 0.84, 0.83, 0.45, 0, 0.25, 0, suit);
-    box('chest-band', this.body, 0.86, 0.13, 0.48, 0, 0.38, 0, trim);
+    // Wider, tapered torso silhouette, like a collectible toy minifigure.
+    const torso = MeshBuilder.CreateCylinder(`${id}-torso`, { height: 0.85, diameterTop: 1.03, diameterBottom: 0.84, tessellation: 4 }, scene);
+    torso.parent = this.body;
+    torso.rotation.y = Math.PI / 4;
+    torso.scaling.z = 0.53;
+    torso.position.set(0, 0.25, 0);
+    torso.material = suit;
+    box('chest-band', this.body, 0.78, 0.12, 0.48, 0, 0.38, 0, trim);
+    box('chest-sash', this.body, 0.18, 0.60, 0.05, -0.16, 0.30, 0.265, suitDark);
+    box('crest', this.body, 0.20, 0.20, 0.05, 0.15, 0.20, 0.27, gold);
     box('belt', this.body, 0.90, 0.15, 0.50, 0, -0.15, 0, belt);
     box('buckle', this.body, 0.20, 0.14, 0.055, 0, -0.15, 0.28, trim);
     box('emblem', this.body, 0.22, 0.25, 0.035, 0, 0.31, 0.25, belt);
@@ -59,17 +68,33 @@ export class Character {
     this.rightArm = pivot('right-shoulder', 0.56, 1.49, 0, this.body);
     this.rightArm.position.y -= 0.98;
     for (const [side, arm] of [['left', this.leftArm], ['right', this.rightArm]] as const) {
-      box(`${side}-sleeve`, arm, 0.30, 0.55, 0.42, 0, -0.23, 0, suitDark);
+      const sleeve = MeshBuilder.CreateCylinder(`${id}-${side}-sleeve`, { diameterTop: 0.38, diameterBottom: 0.32, height: 0.55, tessellation: 16 }, scene);
+      sleeve.parent = arm;
+      sleeve.position.set(0, -0.23, 0);
+      sleeve.material = suitDark;
       const hand = MeshBuilder.CreateCylinder(`${id}-${side}-hand`, { diameter: 0.29, height: 0.27, tessellation: 16 }, scene);
       hand.parent = arm;
       hand.position.set(0, -0.59, 0);
       hand.material = skin;
-      box(`${side}-cuff`, arm, 0.33, 0.10, 0.44, 0, -0.47, 0, trim);
+      const cuff = MeshBuilder.CreateCylinder(`${id}-${side}-cuff`, { diameter: 0.36, height: 0.10, tessellation: 16 }, scene);
+      cuff.parent = arm;
+      cuff.position.set(0, -0.47, 0);
+      cuff.material = trim;
+      // Recognizable open C-grip toy hand, formed from a partial ring.
+      const gripPath: Vector3[] = [];
+      for (let i = 0; i <= 12; i++) {
+        const angle = -Math.PI * 0.72 + i / 12 * Math.PI * 1.44;
+        gripPath.push(new Vector3(Math.cos(angle) * 0.17, -0.67, Math.sin(angle) * 0.17 + 0.04));
+      }
+      const grip = MeshBuilder.CreateTube(`${id}-${side}-grip`, { path: gripPath, radius: 0.064, tessellation: 8 }, scene);
+      grip.parent = arm;
+      grip.material = skin;
     }
     this.leftLeg = pivot('left-hip', -0.22, 0.73, 0);
     this.rightLeg = pivot('right-hip', 0.22, 0.73, 0);
     for (const [side, leg] of [['left', this.leftLeg], ['right', this.rightLeg]] as const) {
       box(`${side}-leg`, leg, 0.37, 0.48, 0.43, 0, -0.22, 0, suit);
+      box(`${side}-knee-band`, leg, 0.385, 0.08, 0.45, 0, -0.36, 0, trim);
       box(`${side}-boot`, leg, 0.38, 0.26, 0.52, 0, -0.51, 0.075, suitDark);
     }
     const head = MeshBuilder.CreateCylinder(`${id}-head`, { diameter: 0.72, height: 0.62, tessellation: 24 }, scene);
@@ -80,16 +105,27 @@ export class Character {
     hood.parent = this.body;
     hood.position.set(0, 1.22, 0);
     hood.material = suitDark;
-    box('forehead-band', this.body, 0.80, 0.10, 0.48, 0, 1.11, 0.21, trim);
+    const crown = MeshBuilder.CreateCylinder(`${id}-crown`, { diameterTop: 0.35, diameterBottom: 0.45, height: 0.12, tessellation: 20 }, scene);
+    crown.parent = this.body;
+    crown.position.set(0, 1.43, 0);
+    crown.material = suitDark;
+    box('forehead-band', this.body, 0.67, 0.10, 0.22, 0, 1.11, 0.31, trim);
     box('mask', this.body, 0.78, 0.25, 0.18, 0, 0.82, 0.34, suitDark);
-    box('left-eye', this.body, 0.105, 0.07, 0.05, -0.16, 1.01, 0.375, eyes);
-    box('right-eye', this.body, 0.105, 0.07, 0.05, 0.16, 1.01, 0.375, eyes);
+    box('left-eye', this.body, 0.115, 0.085, 0.06, -0.16, 1.01, 0.388, eyes);
+    box('right-eye', this.body, 0.115, 0.085, 0.06, 0.16, 1.01, 0.388, eyes);
     // A sheathed training sword, purely visual for now.
     const sword = pivot('sword', 0.33, 1.2, -0.37);
     sword.rotation.z = -0.52;
     box('sword-scabbard', sword, 0.15, 1.0, 0.15, 0, 0.1, 0, belt);
     box('sword-guard', sword, 0.34, 0.09, 0.19, 0, 0.63, 0, steel);
     box('sword-handle', sword, 0.13, 0.33, 0.15, 0, 0.84, 0, swordGrip);
+
+    // Bright identification ring keeps the two heroes readable when zoomed out.
+    const ring = MeshBuilder.CreateTorus(`${id}-selection-ring`, { diameter: 1.25, thickness: 0.045, tessellation: 32 }, scene);
+    ring.position.set(start.x, 0.035, start.z);
+    ring.material = trim;
+    ring.parent = this.root;
+    ring.position.set(0, 0.035, 0);
 
     this.shadow = MeshBuilder.CreateDisc(`${id}-shadow`, { radius: 0.62, tessellation: 28 }, scene);
     this.shadow.rotation.x = Math.PI / 2;
