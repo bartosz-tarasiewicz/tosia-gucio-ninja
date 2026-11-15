@@ -1,3 +1,4 @@
+import './styles.css';
 import Phaser from 'phaser';
 
 type PlayerId = 'tosia' | 'gucio';
@@ -73,9 +74,6 @@ class NinjaTemple extends Phaser.Scene {
 
     for (const [x, y] of [[135, 551], [285, 429], [490, 321], [590, 548], [1050, 550], [1225, 443], [1550, 344], [1805, 420], [2020, 544]]) {
       const coin = this.add.circle(x, y, 13, PALETTE.gold).setStrokeStyle(4, 0xfff0a5).setDepth(8);
-      this.add.text(x, y, '✦', { fontSize: '16px', color: '#956018' }).setOrigin(0.5).setDepth(9);
-      // One visual object per coin; the star glyph is decorative and remains after collection
-      // hidden together with its coin via a child list recorded below.
       this.coins.push({ sprite: coin, x, y, collected: false });
     }
 
