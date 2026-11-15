@@ -38,7 +38,7 @@ class NinjaTemple extends Phaser.Scene {
   private gateOpen = false;
   private ended = false;
   private coinCount = 0;
-  private lastAttack: Record<PlayerId, number> = { tosia: 0, gucio: 0 };
+  private lastAttack: Record<PlayerId, number> = { tosia: -Infinity, gucio: -Infinity };
   private lastGrounded: Record<PlayerId, number> = { tosia: -Infinity, gucio: -Infinity };
   private queuedJump: Record<PlayerId, number> = { tosia: -Infinity, gucio: -Infinity };
   private hud?: HTMLElement;
