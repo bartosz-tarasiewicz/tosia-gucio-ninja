@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.5.4 — Animacja klatkowa i niezależne sterowanie (kandydat do testów)
+- Stary mechanizm rozdzielania postaci przesuwał oboje ninja, gdy dzieliło ich ponad 980px; zastąpiłem go ograniczeniem prędkości wyłącznie gracza oddalającego się od partnera.
+- Przy granicy wspólnego ekranu wyświetla się komunikat „Poczekaj na Tosię/Gucia!”, bez przestawiania drugiej postaci.
+- Powstają osobne klatki idle (4), run (8), jump (2), attack (3) na podstawie zatwierdzonych ilustracji. Ręce i stopy wykonują niewielkie niezależne ruchy z istniejącej grafiki; klatki są generowane tylko raz przy inicjalizacji sceny.
+- Gdy obraz postaci nie jest dostępny, gra zachowuje dotychczasowy awaryjny wygląd.
+- Zmienione wyłącznie animacje i zachowanie współdzielonej kamery; poziom, most i zadania pozostają bez zmian. Do testu lokalnego przed scaleniem.
+
+## 0.5.3 — Ruch postaci i responsywność
+- Obniżona wysokość skoku: prędkość pionowa -650 zamiast -720 (około 184 px zasięgu zamiast 225 px przy grawitacji 1150).
+- Grafika postaci oddzielona od niewidocznego hitboxa fizycznego: stopy są przytwierdzone do fizycznej linii podłoża.
+- Drobne animacje graficzne bez nowych klatek: oddech, rytm biegu, pochylenie w skoku i krótki gest ataku. To nadal NIE jest pełny sprite-sheet biegu.
+- Poprawiony obszar podnoszenia pieczęci: aktywacja przy zetknięciu obrysu postaci z amuletem, nie tylko przy zbliżeniu środka.
+- Bez zmian w moście i oprawie tła; do sprawdzenia w przeglądarce.
+
+## 0.5.2 — Most i kamera kooperacyjna
+- Po odblokowaniu pojawia się osobny, zdobiony kamienny most zamiast kawałka rozciągniętego podłoża. Grafika łączy się z oboma brzegami, a kolizja ma własny niezmieniony obszar.
+- Most płynnie się pojawia, po tym jak obie postacie staną na runicznych płytach.
+- Gracze pozostają w obrębie wspólnej kamery dzięki limitowi wzajemnej odległości, a postać spadająca z planszy odradza się przed zniknięciem pod ekranem.
+- Dolna tekstura podłoża jest bezszwowym, lustrzanie powtarzanym fragmentem naturalnej skały, wspólnym dla obu brzegów. Nie powiela już wielkich prostokątnych zrzutów sceny.
+- Bez zmiany wyglądu zatwierdzonych bohaterów i tła. Nadal wymagany test w przeglądarce.
+
+## 0.5.1 — Accessible platforms & dragon seals
+- Skok: większy zasięg (ok. 225 px zamiast 127 px), wybaczanie spóźnionego/wczesnego naciśnięcia (jump buffer i coyote time). Wyższe podesty są jednostronne: można przeskoczyć przez nie od dołu i wylądować na górze.
+- Likwidacja jaskrawej obwódki: kadrowanie i miękkie krawędzie malowanych podestów.
+- Dwie okrągłe płyty naciskowe zastąpione kamiennymi podestami ze świecącymi runami; bez zmian pozycji ani logiki aktywacji.
+- Nieregularna krawędź prawej wyspy zamiast ostrego prostokąta na styku terenu i przepaści.
+- Zamiast płaskich żółtych kółek zbieramy świecące **smocze pieczęcie** (9 sztuk). Tarcze treningowe są teraz zdobionymi tablicami dojo.
+- Logika bramy, współpracy, shurikenów, portalu i liczba przedmiotów bez zmian.
+- Do odbioru wizualnego przez dzieci, przed merge do main.
+
+## 0.5.0 — Painted Visual Rebuild (art pack)
+- Nowy zestaw ręcznie stylizowanych, ilustracyjnych materiałów WebP: tło fantasy, Tosia i Gucio, roślinne platformy i kamieniste podłoże.
+- Fix: długie sekcje ziemi korzystają z oczyszczonego, powtarzanego wycinka faktury zamiast rozciągniętej ilustracji z widocznym prostokątnym artefaktem.
+- Loader wybiera ilustracje z public/art/v05, gdy są dostępne, zachowując fallback graficzny v0.4.
+- Poprawiony interfejs HUD; gra nadal korzysta z Phaser 3 i dotychczasowych mechanik.
+- Asset pack jest binarny i musi zostać dołączony osobno do gałęzi PR przed scaleniem; nie scalać bez assetów.
+- Obowiązuje odbiór wizualny w przeglądarce przez Tosię i Gucia przed wypuszczeniem na main.
+
 ## 0.4.0 — Illustrated Ninja Platformer (nowy kierunek)
 - Nowa gra Phaser 3 2D w tym samym repo. Widok z boku, osobne grafiki SVG ninja i malownicze warstwowe tło świątyni.
 - Sterowanie dla dwóch dzieci na jednej klawiaturze, skoki i shurikeny.

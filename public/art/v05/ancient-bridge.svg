@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="160" viewBox="0 0 320 160">
+<defs>
+  <linearGradient id="slate" x1="0" y1="0" x2=".16" y2="1"><stop stop-color="#95b1a5"/><stop offset=".20" stop-color="#506c74"/><stop offset=".67" stop-color="#344759"/><stop offset="1" stop-color="#182e43"/></linearGradient>
+  <linearGradient id="edge" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#e2d6a1"/><stop offset=".4" stop-color="#ab986f"/><stop offset="1" stop-color="#5e665b"/></linearGradient>
+  <linearGradient id="deck" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#9ca49b"/><stop offset=".45" stop-color="#667b79"/><stop offset="1" stop-color="#344c58"/></linearGradient>
+  <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff4c1"/><stop offset=".45" stop-color="#d5ad60"/><stop offset="1" stop-color="#906044"/></linearGradient>
+  <radialGradient id="jade"><stop stop-color="#ccfff0"/><stop offset=".35" stop-color="#5af9cd"/><stop offset="1" stop-color="#007e84"/></radialGradient>
+  <filter id="shadow" x="-30%" y="-40%" width="160%" height="185%"><feDropShadow dx="0" dy="7" stdDeviation="6" flood-color="#09182a" flood-opacity=".5"/></filter>
+  <filter id="light"><feGaussianBlur stdDeviation="4"/></filter>
+  <clipPath id="arch"><path d="M13 45H307L301 109H284C249 69 210 69 160 68 110 69 71 69 36 109H19Z"/></clipPath>
+</defs>
+<!-- Understructure: hand-cut ancient stone arch, with the void below open to the waterfall. -->
+<g filter="url(#shadow)">
+<path d="M13 45H307L301 109H284C249 69 210 69 160 68 110 69 71 69 36 109H19Z" fill="url(#slate)" stroke="#192d3f" stroke-width="5" stroke-linejoin="round"/>
+<g clip-path="url(#arch)" fill="none" stroke="#1d3747" stroke-width="3" opacity=".65">
+<path d="M45 48 37 100M75 50 73 76M111 51l-2 27m39-25 0 17m40-17 0 17m39-19 3 27m36-28 3 32m32-31 8 43"/>
+<path d="M17 75H58m28-10h35m31-4h33m26 5h37m23 10h39M16 93h30m228 0h35"/>
+</g>
+<path d="M35 106Q160 0 285 106" fill="none" stroke="#132b3e" stroke-width="8" opacity=".9"/>
+<path d="M38 102Q160 14 282 102" fill="none" stroke="#9bb0a0" stroke-width="2.5" opacity=".8"/>
+<path d="M17 46H303L298 67H22Z" fill="url(#deck)" stroke="#263c48" stroke-width="3"/>
+<!-- Top walking surface follows the collision surface as a continuous solid slab. -->
+<path d="M9 31Q160 30 311 31L308 49Q160 52 12 49Z" fill="url(#edge)" stroke="#574e46" stroke-width="3"/>
+<path d="M11 31Q160 27 309 31" stroke="#c6e6a9" stroke-width="6" stroke-linecap="round"/>
+<path d="M18 35H302" stroke="#fff4bb" stroke-width="2.3" opacity=".68"/>
+<g stroke="#44535b" stroke-width="2.2" opacity=".85">
+<path d="M44 34v14M73 33v16M103 33v17M133 32v17M164 32v17M194 32v17M224 33v16M254 34v15M284 34v14"/>
+</g>
+<!-- Carved rail supports and glowing guardian runes. -->
+<g>
+<path d="M17 32V11L29 5 41 11v21Z" fill="url(#slate)" stroke="#2a3b4a" stroke-width="2.5"/>
+<path d="M279 32V11L291 5 303 11v21Z" fill="url(#slate)" stroke="#2a3b4a" stroke-width="2.5"/>
+<path d="M20 11 29 4 38 11M282 11l9-7 9 7" stroke="url(#gold)" stroke-width="3" fill="none"/>
+<path d="m29 13 5 6-5 6-5-6zm262 0 5 6-5 6-5-6z" fill="url(#jade)" stroke="#e9f8c8" stroke-width="1.5"/>
+<path d="M41 13Q160-4 279 13" fill="none" stroke="#6b5f52" stroke-width="6" stroke-linecap="round"/>
+<path d="M41 13Q160-4 279 13" fill="none" stroke="#e6be7c" stroke-width="2.5" opacity=".95"/>
+<path d="M99 7V30M160 3V30M221 7V30" stroke="#776d60" stroke-width="5"/>
+<path d="M99 7V30M160 3V30M221 7V30" stroke="#dbc18e" stroke-width="1.7"/>
+<path d="M96 3h6v7h-6zm61-4h6v9h-6zm61 4h6v7h-6z" fill="url(#gold)"/>
+<g fill="#9efbe5" opacity=".8" filter="url(#light)"><circle cx="99" cy="5" r="6"/><circle cx="160" cy="1" r="7"/><circle cx="221" cy="5" r="6"/></g>
+<g fill="url(#jade)" stroke="#e2fff1" stroke-width="1.5"><circle cx="99" cy="5" r="3.2"/><circle cx="160" cy="1" r="3.7"/><circle cx="221" cy="5" r="3.2"/></g>
+</g>
+<!-- Natural moss spills over the bridge ends so it joins the grassy islands. -->
+<g fill="#66a950" stroke="#c4db74" stroke-width="1.7">
+<path d="M4 27q17-7 27 4l-2 12-8-8-8 9-2-13-8 10Z"/>
+<path d="M316 27q-17-7-27 4l2 12 8-8 8 9 2-13 8 10Z"/>
+</g>
+<g stroke="#3b8c56" fill="none" stroke-width="3" stroke-linecap="round">
+<path d="M20 46q-5 11 4 17m3-14q-5 14 3 22M300 46q5 11-4 17m-3-14q5 14-3 22"/>
+<path d="M99 64q-6 14 0 23m120-23q6 14-1 23"/>
+</g>
+<path d="M18 47q142 8 284 0" fill="none" stroke="#192f41" stroke-width="2" opacity=".5"/>
+</g>
+</svg>

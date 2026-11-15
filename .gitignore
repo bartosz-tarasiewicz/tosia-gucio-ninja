@@ -6,3 +6,6 @@ dist/
 .env
 .env.*
 !.env.example
+
+# Local v0.5 art pack installer
+install-v05.cmd

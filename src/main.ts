@@ -1,14 +1,37 @@
 import './styles.css';
 import Phaser from 'phaser';
+import { getNinjaHandPose, prepareNinjaFrameAtlas } from './game/PaintedNinjaAnimation';
+import { prepareGreenNinjaOutfit } from './game/ElementalCostume';
 
 type PlayerId = 'tosia' | 'gucio';
-type Controls = { left: Phaser.Input.Keyboard.Key; right: Phaser.Input.Keyboard.Key; jump: Phaser.Input.Keyboard.Key; attack: Phaser.Input.Keyboard.Key };
-type Hero = { id: PlayerId; sprite: Phaser.Physics.Arcade.Sprite; controls: Controls; spawnX: number; spawnY: number; facing: number };
-type Coin = { sprite: Phaser.GameObjects.Arc; x: number; y: number; collected: boolean };
-type Target = { x: number; y: number; body: Phaser.GameObjects.Arc; hit: boolean };
+type HandPoint = { x: number; y: number };
+type Controls = { left: Phaser.Input.Keyboard.Key; right: Phaser.Input.Keyboard.Key; jump: Phaser.Input.Keyboard.Key; attack: Phaser.Input.Keyboard.Key; special: Phaser.Input.Keyboard.Key };
+type Hero = {
+  id: PlayerId;
+  // Invisible Arcade sprite handles gameplay physics, independent of animation.
+  sprite: Phaser.Physics.Arcade.Sprite;
+  visual: Phaser.GameObjects.Image;
+  weapon: Phaser.GameObjects.Image;
+  offhandWeapon?: Phaser.GameObjects.Image;
+  grips: { right: Phaser.GameObjects.Arc; left?: Phaser.GameObjects.Arc };
+  hands: { right: HandPoint; left: HandPoint };
+  chargeGlow?: Phaser.GameObjects.Arc;
+  controls: Controls;
+  spawnX: number;
+  spawnY: number;
+  facing: number;
+};
+type Coin = { sprite: Phaser.GameObjects.Image; x: number; y: number; collected: boolean };
+type Target = { x: number; y: number; body: Phaser.GameObjects.Image; hit: boolean };
 
 const WORLD_WIDTH = 2350;
 const GROUND_Y = 607;
+// Approx. 184px at gravity 1150: reaches 148px-high first ledge without excessive airtime.
+const JUMP_VELOCITY = -650;
+const COYOTE_TIME_MS = 115;
+const JUMP_BUFFER_MS = 135;
+// A shared camera cannot keep both ninjas visible once they are over 1280px apart.
+const MAX_PARTY_DISTANCE = 980;
 const PALETTE = { rock: 0x172c43, grass: 0x62bf52, grassLight: 0x9be46d, stone: 0x31576a, gold: 0xffd46c };
 
 class NinjaTemple extends Phaser.Scene {
@@ -16,20 +39,37 @@ class NinjaTemple extends Phaser.Scene {
   private heroes!: [Hero, Hero];
   private coins: Coin[] = [];
   private targets: Target[] = [];
-  private plates: Phaser.GameObjects.Arc[] = [];
+  private plates: Phaser.GameObjects.Image[] = [];
   private bridge?: Phaser.Physics.Arcade.Image;
-  private bridgeArtwork?: Phaser.GameObjects.Graphics;
+  private bridgeArtwork?: Phaser.GameObjects.Image;
   private gateOpen = false;
   private ended = false;
   private coinCount = 0;
-  private lastAttack: Record<PlayerId, number> = { tosia: 0, gucio: 0 };
+  private lastAttack: Record<PlayerId, number> = { tosia: -Infinity, gucio: -Infinity };
+  private lastSpecial: Record<PlayerId, number> = { tosia: -Infinity, gucio: -Infinity };
+  private lastGrounded: Record<PlayerId, number> = { tosia: -Infinity, gucio: -Infinity };
+  private queuedJump: Record<PlayerId, number> = { tosia: -Infinity, gucio: -Infinity };
   private hud?: HTMLElement;
   private instruction?: HTMLElement;
+  private partyHint?: Phaser.GameObjects.Text;
 
   constructor() { super('NinjaTemple'); }
 
   preload(): void {
     this.load.svg('background', '/art/forest.svg');
+    // Hand-painted v0.5 assets live in public/art/v05. On a clean checkout
+    // without the optional art pack, the v0.4 vector art remains playable.
+    this.load.image('painted-bg', '/art/v05/background.webp');
+    this.load.image('painted-platform', '/art/v05/platform.webp');
+    this.load.image('painted-ground', '/art/v05/ground.webp');
+    this.load.image('painted-tosia', '/art/v05/tosia.webp');
+    this.load.image('painted-gucio', '/art/v05/gucio.webp');
+    this.load.svg('weapon-katana', '/art/v05/weapon-katana.svg', { width: 80, height: 160 });
+    this.load.svg('weapon-bow', '/art/v05/weapon-bow.svg', { width: 100, height: 160 });
+    this.load.svg('dragon-seal', '/art/v05/dragon-seal.svg', { width: 80, height: 96 });
+    this.load.svg('dojo-target', '/art/v05/dojo-target.svg', { width: 100, height: 112 });
+    this.load.svg('rune-pedestal', '/art/v05/rune-pedestal.svg', { width: 160, height: 92 });
+    this.load.svg('ancient-bridge', '/art/v05/ancient-bridge.svg', { width: 320, height: 160 });
     this.load.svg('tosia', '/art/tosia.svg', { width: 116, height: 146 });
     this.load.svg('gucio', '/art/gucio.svg', { width: 116, height: 146 });
     this.load.svg('tosia-jump', '/art/tosia-jump.svg', { width: 116, height: 146 });
@@ -42,11 +82,15 @@ class NinjaTemple extends Phaser.Scene {
     art.generateTexture('pixel', 4, 4);
     art.destroy();
 
-    this.add.image(640, 360, 'background')
+    const bgKey = this.textures.exists('painted-bg') ? 'painted-bg' : 'background';
+    this.add.image(640, 360, bgKey)
       .setDisplaySize(1280, 720).setScrollFactor(0).setDepth(-20);
 
     // Parallax layer: light atmospheric mist, independent of collision.
     this.add.rectangle(1170, 575, WORLD_WIDTH, 160, 0x90d7c6, 0.06).setDepth(-10);
+    this.prepareGroundStrip();
+    this.prepareGroundCliffEdge();
+    this.prepareFloatingPlatformArt();
     this.platforms = this.physics.add.staticGroup();
 
     this.addPlatform(360, GROUND_Y + 50, 720, 100);
@@ -57,27 +101,30 @@ class NinjaTemple extends Phaser.Scene {
     this.addPlatform(1530, 391, 310, 32);
     this.addPlatform(1880, 475, 260, 32);
 
-    // Bridge starts locked. Both heroes must stand on distinct rune plates.
-    this.bridgeArtwork = this.createPlatformArtwork(850, GROUND_Y + 50, 260, 100);
-    this.bridgeArtwork.setVisible(false);
+    // Bridge starts locked. It is an actual ancient arch, not a third chunk of
+    // terrain. The artwork overlaps each island by 20px to hide joins.
+    // The SVG's deck is at y=31/160; position it precisely at GROUND_Y.
+    this.bridgeArtwork = this.add.image(850, GROUND_Y + 46, 'ancient-bridge')
+      .setDisplaySize(300, 150).setDepth(1).setAlpha(0).setVisible(false);
     this.bridge = this.platforms.create(850, GROUND_Y + 50, 'pixel') as Phaser.Physics.Arcade.Image;
     this.bridge.setDisplaySize(260, 100).refreshBody().setVisible(false).disableBody(true, true);
 
     for (const x of [460, 615]) {
-      const plate = this.add.circle(x, GROUND_Y - 9, 30, x === 460 ? 0x36ddc0 : 0xffd36e, 0.68)
-        .setStrokeStyle(5, 0xffedaf).setDepth(2);
+      this.add.ellipse(x, GROUND_Y - 4, 106, 23, x === 460 ? 0x47f4d3 : 0xffe394, 0.20).setDepth(1);
+      const plate = this.add.image(x, GROUND_Y - 9, 'rune-pedestal')
+        .setDisplaySize(100, 57)
+        .setTint(x === 460 ? 0xc6ffed : 0xffe0a7)
+        .setDepth(2);
       this.plates.push(plate);
-      this.add.ellipse(x, GROUND_Y - 4, 76, 17, 0xffffff, 0.13).setDepth(1);
     }
 
     for (const [x, y] of [[135, 551], [285, 429], [490, 321], [590, 548], [1050, 550], [1225, 443], [1550, 344], [1805, 420], [2020, 544]]) {
-      const coin = this.add.circle(x, y, 13, PALETTE.gold).setStrokeStyle(4, 0xfff0a5).setDepth(8);
-      this.coins.push({ sprite: coin, x, y, collected: false });
+      const seal = this.add.image(x, y, 'dragon-seal').setDisplaySize(44, 52).setDepth(8);
+      this.coins.push({ sprite: seal, x, y, collected: false });
     }
 
     for (const [x, y] of [[525, 315], [1520, 334]]) {
-      const target = this.add.circle(x, y, 24, 0x933d52).setStrokeStyle(7, 0xf5d389).setDepth(7);
-      this.add.circle(x, y, 10, 0xffeeac).setDepth(8);
+      const target = this.add.image(x, y, 'dojo-target').setDisplaySize(62, 70).setDepth(7);
       this.targets.push({ x, y, body: target, hit: false });
     }
 
@@ -89,8 +136,22 @@ class NinjaTemple extends Phaser.Scene {
     portal.add([halo, rim, inner]);
     this.tweens.add({ targets: halo, scaleX: 1.13, scaleY: 1.13, alpha: 0.36, yoyo: true, repeat: -1, duration: 1200 });
 
+    // Create actual animation frames from the already-approved painted artwork.
+    // The generated atlases include distinct leg/arm positions for movement,
+    // jumping and attacks, and are prepared once at scene creation.
+    prepareGreenNinjaOutfit(this);
+    prepareNinjaFrameAtlas(this, 'tosia');
+    prepareNinjaFrameAtlas(this, 'gucio');
     this.heroes = [this.addHero('tosia', 112, 480), this.addHero('gucio', 188, 480)];
     for (const hero of this.heroes) this.physics.add.collider(hero.sprite, this.platforms);
+    this.partyHint = this.add.text(640, 154, 'Poczekaj na drugiego ninja!', {
+      fontFamily: 'Arial, sans-serif',
+      fontSize: '21px',
+      fontStyle: 'bold',
+      color: '#fff1bf',
+      backgroundColor: '#153749e6',
+      padding: { x: 16, y: 9 }
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(40).setVisible(false);
 
     this.cameras.main.setBounds(0, 0, WORLD_WIDTH, 720);
     this.physics.world.setBounds(0, -140, WORLD_WIDTH, 1200);
@@ -106,13 +167,131 @@ class NinjaTemple extends Phaser.Scene {
     for (const h of this.heroes ?? []) h.sprite.setVelocityX(0);
   };
 
+  /**
+   * The v0.5 ground image was extracted from an illustrated scene. Its lower edge
+   * includes unrelated foreground/UI details, and stretching the whole image over
+   * long ground sections creates visible rectangular seams.
+   * Build a short, repeatable strip from the clean moss-and-rock center instead.
+   */
+  private prepareGroundStrip(): void {
+    if (!this.textures.exists('painted-ground')) return;
+    const source = this.textures.get('painted-ground').getSourceImage() as HTMLImageElement;
+    // Build a genuinely seamless texture: mirror the clean central rock strip.
+    // The original 667x189 crop includes foreground flowers and unrelated UI
+    // near the left and bottom edges; those must never be tiled into the level.
+    const texture = this.textures.createCanvas('painted-ground-strip', 512, 112);
+    if (!texture) return;
+    const ctx = texture.getContext();
+    ctx.clearRect(0, 0, 512, 112);
+    ctx.drawImage(source, 265, 26, 256, 112, 0, 0, 256, 112);
+    ctx.save();
+    ctx.translate(512, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(source, 265, 26, 256, 112, 0, 0, 256, 112);
+    ctx.restore();
+    texture.refresh();
+  }
+
+  /**
+   * Trim the artificial bright edge from the source platform render.
+   * The soft alpha at the side corners blends its rocky silhouette into the
+   * landscape instead of showing an opaque rectangular outline.
+   */
+  private prepareFloatingPlatformArt(): void {
+    if (!this.textures.exists('painted-platform')) return;
+    const source = this.textures.get('painted-platform').getSourceImage() as HTMLImageElement;
+    const sw = source.naturalWidth || source.width;
+    const sh = source.naturalHeight || source.height;
+    if (sw < 48 || sh < 32) return;
+    const image = this.textures.createCanvas('painted-platform-soft', 320, 144);
+    if (!image) return;
+    const ctx = image.getContext();
+    ctx.clearRect(0, 0, 320, 144);
+    // Cropping excludes the neon rim and the empty padded edges of the export.
+    ctx.drawImage(source, sw * 0.07, sh * 0.06, sw * 0.86, sh * 0.78, 0, 0, 320, 144);
+    ctx.globalCompositeOperation = 'destination-in';
+    const sides = ctx.createLinearGradient(0, 0, 320, 0);
+    sides.addColorStop(0, 'rgba(0,0,0,0)');
+    sides.addColorStop(0.05, '#000');
+    sides.addColorStop(0.95, '#000');
+    sides.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = sides;
+    ctx.fillRect(0, 0, 320, 144);
+    ctx.globalCompositeOperation = 'source-over';
+    image.refresh();
+  }
+
+  /**
+   * A mossy, jagged cliff silhouette replaces the hard rectangular left edge
+   * of the right-hand island. This is artwork only; colliders are unchanged.
+   */
+  private prepareGroundCliffEdge(): void {
+    if (!this.textures.exists('painted-ground')) return;
+    const source = this.textures.get('painted-ground').getSourceImage() as HTMLImageElement;
+    const texture = this.textures.createCanvas('painted-ground-edge', 120, 160);
+    if (!texture) return;
+    const ctx = texture.getContext();
+    ctx.clearRect(0, 0, 120, 160);
+    ctx.drawImage(source, 230, 25, 200, 130, 0, 0, 120, 160);
+    ctx.globalCompositeOperation = 'destination-in';
+    ctx.beginPath();
+    ctx.moveTo(24, 0);
+    ctx.quadraticCurveTo(7, 10, 18, 32);
+    ctx.lineTo(8, 45);
+    ctx.lineTo(25, 65);
+    ctx.lineTo(12, 82);
+    ctx.lineTo(21, 98);
+    ctx.lineTo(3, 123);
+    ctx.lineTo(19, 151);
+    ctx.lineTo(120, 160);
+    ctx.lineTo(120, 0);
+    ctx.closePath();
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+    texture.refresh();
+  }
+
   private addPlatform(x: number, y: number, width: number, height: number): void {
     this.createPlatformArtwork(x, y, width, height);
     const collider = this.platforms.create(x, y, 'pixel') as Phaser.Physics.Arcade.Image;
     collider.setDisplaySize(width, height).refreshBody().setVisible(false);
+    if (height < 100) {
+      // One-way elevated ledges: the ninja can jump through their underside
+      // and land on top. Full solid collision previously trapped both players
+      // below the first overhanging platform, even after increasing jump height.
+      const body = collider.body as Phaser.Physics.Arcade.StaticBody;
+      body.checkCollision.down = false;
+      body.checkCollision.left = false;
+      body.checkCollision.right = false;
+    }
   }
 
-  private createPlatformArtwork(x: number, y: number, width: number, height: number): Phaser.GameObjects.Graphics {
+  private createPlatformArtwork(x: number, y: number, width: number, height: number): Phaser.GameObjects.Graphics | Phaser.GameObjects.Image | Phaser.GameObjects.TileSprite | Phaser.GameObjects.Container {
+    // Use the same seamless rock pattern on BOTH banks. The old left bank
+    // stretched the original screenshot; the right repeated non-matching crops.
+    if (height >= 100 && this.textures.exists('painted-ground-strip')) {
+      const top = y - height / 2;
+      const left = x - width / 2;
+      // The second island receives an irregular silhouette at its left edge.
+      const edgeWidth = width > 900 && this.textures.exists('painted-ground-edge') ? 75 : 0;
+      const bodyWidth = width - edgeWidth;
+      const body = this.add.tileSprite(left + edgeWidth + bodyWidth / 2, top + 50, bodyWidth, 112, 'painted-ground-strip');
+      if (!edgeWidth) return body.setDepth(0);
+      const cliff = this.add.image(left + edgeWidth / 2, top + 68, 'painted-ground-edge')
+        .setDisplaySize(edgeWidth + 12, 148);
+      return this.add.container(0, 0, [body, cliff]).setDepth(0);
+    }
+    const painted = height >= 100 ? 'painted-ground'
+      : (this.textures.exists('painted-platform-soft') ? 'painted-platform-soft' : 'painted-platform');
+    if (this.textures.exists(painted)) {
+      // Align the painted moss edge with the invisible physics surface.
+      const artHeight = height >= 100 ? Math.max(height + 62, width * 0.25) : Math.max(height + 64, width * 0.35);
+      const top = y - height / 2;
+      return this.add.image(x, top - 6 + artHeight / 2, painted)
+        .setDisplaySize(width, artHeight).setDepth(0);
+    }
+
     const g = this.add.graphics({ x, y }).setDepth(0);
     g.fillStyle(PALETTE.rock).fillRoundedRect(-width / 2, -height / 2, width, height, 10);
     g.fillStyle(PALETTE.stone).fillRect(-width / 2 + 8, -height / 2 + 18, width - 16, Math.max(2, height - 30));
@@ -126,41 +305,173 @@ class NinjaTemple extends Phaser.Scene {
   }
 
   private addHero(id: PlayerId, x: number, y: number): Hero {
-    const sprite = this.physics.add.sprite(x, y, id).setDepth(10).setScale(0.84);
+    const paintedKey = `painted-${id}`;
+    const hasPainted = this.textures.exists(paintedKey);
+    const sprite = this.physics.add.sprite(x, y, hasPainted ? paintedKey : id).setDepth(10);
+    if (hasPainted) sprite.setDisplaySize(108, 152);
+    else sprite.setScale(0.84);
     sprite.setCollideWorldBounds(true);
-    sprite.setSize(56, 114).setOffset(30, 20);
+    // Hitbox stays compact, even for high-resolution transparent art.
+    if (hasPainted) {
+      const image = this.textures.get(paintedKey).getSourceImage() as HTMLImageElement;
+      sprite.setSize(image.width * 0.55, image.height * 0.86)
+        .setOffset(image.width * 0.225, image.height * 0.12);
+    } else sprite.setSize(56, 114).setOffset(30, 20);
+    // Do not transform the collision body when animating. Separate artwork
+    // remains bottom-aligned with the physics body so feet meet the ground.
+    const frameAtlas = `ninja-frames-${id}`;
+    const hasFrameAtlas = this.textures.exists(frameAtlas);
+    const visual = this.add.image(x, y,
+      hasFrameAtlas ? frameAtlas : (hasPainted ? paintedKey : id),
+      hasFrameAtlas ? 'idle0' : undefined)
+      .setDisplaySize(hasPainted ? 108 : 97, hasPainted ? 152 : 123)
+      .setOrigin(0.5, 1)
+      .setDepth(10);
+    // The blade's hilt is at the wrist anchor (85% down its SVG), not the head.
+    const weapon = this.add.image(x, y, 'weapon-katana')
+      .setDisplaySize(29, 67).setOrigin(0.5, 0.86).setDepth(11);
+    const offhandWeapon = id === 'gucio'
+      ? this.add.image(x, y, 'weapon-katana')
+          .setDisplaySize(27, 63).setOrigin(0.5, 0.86)
+          .setTint(0xb9ff9b).setDepth(11)
+      : undefined;
+    if (id === 'gucio') weapon.setTint(0xb9ff9b);
+    // Small gloves cover the hilt ends at the actual palm, so the grip is visible.
+    const gloveColor = id === 'tosia' ? 0x216e8f : 0x234a32;
+    const rightGrip = this.add.circle(x, y, 5.6, gloveColor)
+      .setStrokeStyle(1.6, 0xd6e4c6).setDepth(12);
+    const leftGrip = offhandWeapon
+      ? this.add.circle(x, y, 5.4, gloveColor)
+          .setStrokeStyle(1.5, 0xd6e4c6).setDepth(12)
+      : undefined;
+    sprite.setVisible(false);
     sprite.setBounce(0);
     sprite.setMaxVelocity(245, 900);
     const kb = this.input.keyboard;
     if (!kb) throw new Error('Brak obsługi klawiatury');
     const key = (name: string): Phaser.Input.Keyboard.Key => kb.addKey(name, false);
     const controls = id === 'tosia'
-      ? { left: key('A'), right: key('D'), jump: key('SPACE'), attack: key('Q') }
-      : { left: key('LEFT'), right: key('RIGHT'), jump: key('ENTER'), attack: key('SHIFT') };
-    return { id, sprite, controls, spawnX: x, spawnY: y, facing: 1 };
+      ? { left: key('A'), right: key('D'), jump: key('SPACE'), attack: key('Q'), special: key('E') }
+      : { left: key('LEFT'), right: key('RIGHT'), jump: key('ENTER'), attack: key('PERIOD'), special: key('CTRL') };
+    return {
+      id, sprite, visual, weapon, offhandWeapon,
+      grips: { right: rightGrip, left: leftGrip },
+      hands: { right: { x, y }, left: { x, y } },
+      controls, spawnX: x, spawnY: y, facing: 1
+    };
   }
 
   update(time: number): void {
     if (this.ended) return;
+    let waitingForPartner: string | null = null;
     for (const hero of this.heroes) {
       const body = hero.sprite.body as Phaser.Physics.Arcade.Body;
-      const { left, right, jump, attack } = hero.controls;
+      const { left, right, jump, attack, special } = hero.controls;
       const axis = Number(right.isDown) - Number(left.isDown);
-      hero.sprite.setVelocityX(axis * 240);
+      // Each ninja controls only their own movement. If the partner is
+      // almost a screen away, stop the ninja moving farther OUTWARD.
+      // Never change the stationary partner's position (old tether bug).
+      const partner = this.heroes.find(other => other.id !== hero.id)!;
+      const distance = hero.sprite.x - partner.sprite.x;
+      const movingAway = axis !== 0 && Math.sign(axis) === Math.sign(distance);
+      const available = Math.max(0, MAX_PARTY_DISTANCE - Math.abs(distance));
+      const maxOutwardSpeed = available * 1000 / Math.max(1, this.game.loop.delta);
+      const speed = movingAway ? Math.min(240, maxOutwardSpeed) : 240;
+      hero.sprite.setVelocityX(axis * speed);
+      if (movingAway && speed < 8) {
+        waitingForPartner = partner.id === 'tosia' ? 'Poczekaj na Tosię!' : 'Poczekaj na Gucia!';
+      }
       if (axis) {
         hero.facing = axis;
-        hero.sprite.setFlipX(axis < 0);
+        hero.visual.setFlipX(axis < 0);
       }
-      if (Phaser.Input.Keyboard.JustDown(jump) && body.blocked.down) hero.sprite.setVelocityY(-540);
-      const jumping = !body.blocked.down;
-      hero.sprite.setTexture(jumping ? `${hero.id}-jump` : hero.id);
-      hero.sprite.setAngle(!jumping && axis ? Math.sin(time * 0.016) * 2.4 : 0);
-      if (Phaser.Input.Keyboard.JustDown(attack) && time - this.lastAttack[hero.id] > 240) {
+      // A forgiving jump, plus coyote time and input buffering for two kids on one keyboard.
+      if (body.blocked.down || body.touching.down) this.lastGrounded[hero.id] = time;
+      if (Phaser.Input.Keyboard.JustDown(jump)) this.queuedJump[hero.id] = time;
+      if (time - this.queuedJump[hero.id] <= JUMP_BUFFER_MS
+          && time - this.lastGrounded[hero.id] <= COYOTE_TIME_MS) {
+        hero.sprite.setVelocityY(JUMP_VELOCITY);
+        this.queuedJump[hero.id] = -Infinity;
+        this.lastGrounded[hero.id] = -Infinity;
+      }
+      const jumping = !body.blocked.down && !body.touching.down;
+      // Display animated frames independently from the collision body.
+      // A painted sprite is split into four limb layers when its atlas is built.
+      const visual = hero.visual;
+      const frameAtlas = `ninja-frames-${hero.id}`;
+      const hasFrames = this.textures.exists(frameAtlas);
+      const running = Math.abs(body.velocity.x) > 7 && !jumping;
+      const swordAge = time - this.lastAttack[hero.id];
+      const powerAge = time - this.lastSpecial[hero.id];
+      const motionAge = Math.min(swordAge, powerAge);
+      const attacking = motionAge < 300;
+      const cycle = time * 0.017 + (hero.id === 'gucio' ? 1.2 : 0);
+      let animationFrame = 'idle0';
+      if (hasFrames) {
+        if (visual.texture.key !== frameAtlas) visual.setTexture(frameAtlas, 'idle0');
+        animationFrame = attacking
+          ? `attack${Math.min(2, Math.floor(motionAge / 100))}`
+          : jumping
+            ? (body.velocity.y < 0 ? 'jump0' : 'jump1')
+            : running
+              ? `run${Math.floor(time / 75) % 8}`
+              : `idle${Math.floor(time / 320) % 4}`;
+        if (visual.frame.name !== animationFrame) visual.setFrame(animationFrame);
+      } else {
+        const sourceKey = this.textures.exists(`painted-${hero.id}`) ? `painted-${hero.id}` : hero.id;
+        if (visual.texture.key !== sourceKey) visual.setTexture(sourceKey);
+      }
+      const runBob = running ? Math.abs(Math.sin(cycle)) * 2 : 0;
+      const idleBreath = !jumping && !running ? Math.sin(time * 0.0035) * 0.004 : 0;
+      const stretch = jumping ? 1.025 : running ? 1 + Math.sin(cycle * 2) * 0.009 : 1 + idleBreath;
+      const squash = jumping ? 0.98 : running ? 1 - Math.sin(cycle * 2) * 0.007 : 1;
+      visual.setScale((visual.width > 150 ? 108 : 97) / visual.width * squash,
+        (visual.height > 160 ? 152 : 123) / visual.height * stretch);
+      const attackLean = attacking
+        ? Math.sin(Phaser.Math.Clamp(motionAge / 300, 0, 1) * Math.PI) * 3 : 0;
+      visual.setAngle(jumping ? hero.facing * (body.velocity.y < 0 ? -4 : 3)
+        : running ? Math.sin(cycle) * 1.5 - hero.facing * attackLean
+          : Math.sin(time * 0.002) * 0.5 - hero.facing * attackLean);
+      visual.setPosition(hero.sprite.x, body.bottom + (running ? runBob : 0) + 2);
+      // Hand positions use the SAME rig rotations as the rendered limb atlas.
+      // No arbitrary head-relative offsets: the hilt follows the actual palm.
+      this.updateHeroHands(hero, animationFrame, hasFrames);
+      const swordSwing = swordAge < 280;
+      const t = Phaser.Math.Clamp(swordAge / 280, 0, 1);
+      const attackAngle = t < 0.22 ? Phaser.Math.Linear(58, -30, t / 0.22)
+        : t < 0.76 ? Phaser.Math.Linear(-30, 112, (t - 0.22) / 0.54)
+          : Phaser.Math.Linear(112, 58, (t - 0.76) / 0.24);
+      const primaryAngle = swordSwing ? attackAngle : powerAge < 320 ? 94 : 58;
+      hero.weapon.setPosition(hero.hands.right.x, hero.hands.right.y)
+        .setFlipX(hero.facing < 0).setAngle(hero.facing * primaryAngle);
+      hero.grips.right.setPosition(hero.hands.right.x, hero.hands.right.y);
+      if (hero.offhandWeapon) {
+        const otherAngle = swordSwing ? 135 - attackAngle : powerAge < 320 ? -88 : -58;
+        hero.offhandWeapon.setPosition(hero.hands.left.x, hero.hands.left.y)
+          .setFlipX(hero.facing > 0).setAngle(hero.facing * otherAngle);
+        hero.grips.left?.setPosition(hero.hands.left.x, hero.hands.left.y);
+      }
+      hero.chargeGlow?.setPosition(hero.hands.right.x, hero.hands.right.y);
+      if (Phaser.Input.Keyboard.JustDown(attack) && time - this.lastAttack[hero.id] > 300) {
         this.lastAttack[hero.id] = time;
         this.attack(hero);
       }
-      if (hero.sprite.y > 850) this.resetHero(hero);
+      if (Phaser.Input.Keyboard.JustDown(special) && time - this.lastSpecial[hero.id] > 700) {
+        this.lastSpecial[hero.id] = time;
+        this.specialAttack(hero);
+      }
+      // Respawn before the ninja disappears below the visible playfield.
+      if (hero.sprite.y > 740) this.resetHero(hero);
     }
+
+    if (this.partyHint) {
+      this.partyHint.setVisible(waitingForPartner !== null);
+      if (waitingForPartner) this.partyHint.setText(waitingForPartner);
+    }
+
+    // The previous implementation shifted BOTH heroes here whenever their
+    // separation exceeded the limit, so the leading ninja dragged the other.
+    // Movement is now bounded per controller above; no teleporting either hero.
 
     // Simultaneous occupancy: no permanent gate state until both cooperate.
     if (!this.gateOpen) {
@@ -172,8 +483,15 @@ class NinjaTemple extends Phaser.Scene {
     for (const coin of this.coins) {
       if (coin.collected) continue;
       coin.sprite.y = coin.y + Math.sin(time / 300 + coin.x) * 5;
-      coin.sprite.setScale(1 + Math.sin(time / 240 + coin.x) * 0.08);
-      if (this.heroes.some(hero => Phaser.Math.Distance.Between(hero.sprite.x, hero.sprite.y, coin.x, coin.sprite.y) < 51)) {
+      coin.sprite.setScale(0.55 + Math.sin(time / 260 + coin.x) * 0.022);
+      // A seal can be grabbed with any part of the character's visible body,
+      // not only near the sprite pivot (which made elevated badges seem broken).
+      const sealArea = new Phaser.Geom.Rectangle(coin.x - 24, coin.sprite.y - 28, 48, 56);
+      if (this.heroes.some(hero => {
+        const body = hero.sprite.body as Phaser.Physics.Arcade.Body;
+        const reach = new Phaser.Geom.Rectangle(body.x - 8, body.y - 8, body.width + 16, body.height + 16);
+        return Phaser.Geom.Intersects.RectangleToRectangle(reach, sealArea);
+      })) {
         coin.collected = true;
         coin.sprite.destroy();
         this.coinCount++;
@@ -187,43 +505,156 @@ class NinjaTemple extends Phaser.Scene {
     this.cameras.main.scrollX = Phaser.Math.Linear(this.cameras.main.scrollX, desired, 0.055);
   }
 
+  /**
+   * Project the painter's hand positions to world-space after applying the
+   * sprite's current animation, scale, facing direction and body lean.
+   */
+  private updateHeroHands(hero: Hero, frame: string, hasFrames: boolean): void {
+    const visual = hero.visual;
+    const rotation = visual.rotation;
+    const cos = Math.cos(rotation);
+    const sin = Math.sin(rotation);
+    for (const hand of ['left', 'right'] as const) {
+      let dx: number;
+      let dy: number;
+      if (hasFrames) {
+        const [sx, sy] = getNinjaHandPose(hero.id, frame, hand);
+        dx = (sx - visual.width / 2) * visual.scaleX;
+        dy = (sy - visual.height) * visual.scaleY;
+      } else {
+        // Also support the vector art fallback on a fresh installation.
+        dx = (hand === 'right' ? 17 : -17) * (visual.displayWidth / 97);
+        dy = -47 * (visual.displayHeight / 123);
+      }
+      if (visual.flipX) dx = -dx;
+      hero.hands[hand].x = visual.x + dx * cos - dy * sin;
+      hero.hands[hand].y = visual.y + dx * sin + dy * cos;
+    }
+  }
+
   private resetHero(hero: Hero): void {
     hero.sprite.setPosition(hero.spawnX, hero.spawnY);
     hero.sprite.setVelocity(0, 0);
+    const body = hero.sprite.body as Phaser.Physics.Arcade.Body;
+    hero.visual.setPosition(hero.spawnX, body.bottom + 2);
+    this.updateHeroHands(hero, 'idle0', this.textures.exists(`ninja-frames-${hero.id}`));
+    hero.weapon.setPosition(hero.hands.right.x, hero.hands.right.y);
+    hero.offhandWeapon?.setPosition(hero.hands.left.x, hero.hands.left.y);
+    hero.grips.right.setPosition(hero.hands.right.x, hero.hands.right.y);
+    hero.grips.left?.setPosition(hero.hands.left.x, hero.hands.left.y);
+    hero.chargeGlow?.destroy();
+    hero.chargeGlow = undefined;
   }
 
   private unlockBridge(): void {
     this.gateOpen = true;
     this.bridge?.enableBody(false, 850, GROUND_Y + 50, true, true);
     this.bridge?.setVisible(false);
-    this.bridgeArtwork?.setVisible(true);
-    for (const plate of this.plates) plate.setFillStyle(0x94ffb7, 1);
+    if (this.bridgeArtwork) {
+      this.bridgeArtwork.setVisible(true);
+      this.tweens.add({ targets: this.bridgeArtwork, alpha: 1, duration: 400, ease: 'Sine.easeOut' });
+    }
+    for (const plate of this.plates) plate.setTint(0xb9ffe5);
     if (this.instruction) this.instruction.textContent = 'Most odblokowany! Wspólnie dotrzyjcie do magicznego portalu.';
     this.cameras.main.flash(360, 91, 246, 196, false);
   }
 
+  private hitTarget(target: Target): void {
+    if (target.hit) return;
+    target.hit = true;
+    target.body.setTint(0x79f2b5);
+    this.refreshHud();
+  }
+
   private attack(hero: Hero): void {
-    const x = hero.sprite.x + hero.facing * 36;
-    const y = hero.sprite.y - 10;
-    const shuriken = this.add.star(x, y, 4, 6, 20, 0xe1faff).setStrokeStyle(3, 0x2e9bbc).setDepth(12);
+    const water = hero.id === 'tosia';
+    const hand = hero.hands.right;
+    const arc = this.add.graphics({ x: hand.x, y: hand.y }).setDepth(13);
+    const angle = hero.facing > 0 ? 0 : Math.PI;
+    // Slash is emitted by the hand/sword, rather than from the character's head.
+    arc.lineStyle(water ? 8 : 10, water ? 0x9aefff : 0x9bffa4, 0.9);
+    arc.beginPath();
+    arc.arc(0, 0, water ? 62 : 72, angle - 0.85, angle + 0.85, false);
+    arc.strokePath();
+    arc.lineStyle(2.5, water ? 0xe4fbff : 0xffe36b, 0.85);
+    arc.beginPath();
+    arc.arc(0, 0, water ? 57 : 67, angle - 0.85, angle + 0.85, false);
+    arc.strokePath();
+    this.tweens.add({ targets: arc, alpha: 0, scaleX: 1.17, scaleY: 1.17,
+      duration: 220, onComplete: () => arc.destroy() });
+    for (const target of this.targets) {
+      if (target.hit) continue;
+      const dx = target.x - hero.sprite.x;
+      const dy = target.y - hand.y;
+      if (dx * hero.facing >= -7 && dx * hero.facing <= (water ? 135 : 145)
+          && Math.abs(dy) <= 110) this.hitTarget(target);
+    }
+  }
+
+  private specialAttack(hero: Hero): void {
+    const isWater = hero.id === 'tosia';
+    const color = isWater ? 0x65dfff : 0x63f586;
+    // The casting orb grows directly in the animated palm before being released.
+    hero.chargeGlow?.destroy();
+    const glow = this.add.circle(hero.hands.right.x, hero.hands.right.y,
+      isWater ? 13 : 16, color, 0.8)
+      .setStrokeStyle(3, 0xe9ffff).setDepth(14);
+    hero.chargeGlow = glow;
+    this.tweens.add({ targets: glow, scale: 1.65, alpha: 0.3, duration: 160 });
+    this.time.delayedCall(165, () => {
+      if (hero.chargeGlow !== glow) return;
+      hero.chargeGlow = undefined;
+      glow.destroy();
+      this.launchElementalPower(hero, isWater, color);
+    });
+  }
+
+  private launchElementalPower(hero: Hero, isWater: boolean, color: number): void {
+    const x = hero.hands.right.x + hero.facing * 9;
+    const y = hero.hands.right.y - 2;
     const nearby = this.targets.filter(t => !t.hit)
-      .map(t => ({ t, d: Phaser.Math.Distance.Between(x, y, t.x, t.y) }))
-      .filter(item => item.d < 230)
-      .sort((a, b) => a.d - b.d)[0];
-    const destination = nearby ? { x: nearby.t.x, y: nearby.t.y } : { x: x + hero.facing * 240, y: y - 18 };
-    this.tweens.add({ targets: shuriken, x: destination.x, y: destination.y, angle: 720, duration: 300,
-      onComplete: () => {
-        shuriken.destroy();
-        if (nearby && !nearby.t.hit) {
-          nearby.t.hit = true;
-          nearby.t.body.setFillStyle(0x43dba1);
-          this.refreshHud();
-        }
+      .map(target => ({ target, dist: Phaser.Math.Distance.Between(x, y, target.x, target.y) }))
+      .filter(item => item.dist <= (isWater ? 410 : 560)
+        && (item.target.x - x) * hero.facing >= 0)
+      .sort((a, b) => a.dist - b.dist)[0];
+    const destination = nearby ? { x: nearby.target.x, y: nearby.target.y }
+      : { x: x + hero.facing * (isWater ? 380 : 500), y: y - 20 };
+    const originBurst = this.add.circle(x, y, 13, color, 0.55).setDepth(14);
+    this.tweens.add({ targets: originBurst, scale: 2.4, alpha: 0,
+      duration: 220, onComplete: () => originBurst.destroy() });
+    const projectile = this.add.container(x, y).setDepth(14);
+    if (isWater) {
+      const wave = this.add.graphics();
+      wave.fillStyle(0x82ecff, 0.85);
+      wave.fillEllipse(0, 0, 60, 28);
+      wave.lineStyle(4, 0xe1ffff, 0.9);
+      wave.strokeEllipse(0, 0, 68, 35);
+      wave.fillStyle(0xb8ffff, 0.8);
+      wave.fillCircle(-13, -12, 8);
+      wave.fillCircle(12, 10, 6);
+      projectile.add(wave);
+      projectile.setScale(hero.facing > 0 ? 1 : -1, 1);
+    } else {
+      const halo = this.add.circle(0, 0, 28, color, 0.25);
+      const orb = this.add.circle(0, 0, 18, color, 0.92).setStrokeStyle(4, 0xd9ffe2, 1);
+      const core = this.add.circle(-5, -5, 6, 0xffffff, 0.85);
+      projectile.add([halo, orb, core]);
+      this.tweens.add({ targets: halo, scale: 1.5, alpha: 0.1,
+        duration: 175, yoyo: true, repeat: -1 });
+    }
+    const distance = Phaser.Math.Distance.Between(x, y, destination.x, destination.y);
+    this.tweens.add({ targets: projectile, x: destination.x, y: destination.y,
+      duration: Phaser.Math.Clamp(distance, 200, 520), onComplete: () => {
+        projectile.destroy();
+        if (nearby) this.hitTarget(nearby.target);
+        const burst = this.add.circle(destination.x, destination.y, 22, color, 0.55).setDepth(14);
+        this.tweens.add({ targets: burst, scale: 2.4, alpha: 0, duration: 220,
+          onComplete: () => burst.destroy() });
       } });
   }
 
   private refreshHud(): void {
-    if (this.hud) this.hud.textContent = `✦ ${this.coinCount}/9   🎯 ${this.targets.filter(t => t.hit).length}/2`;
+    if (this.hud) this.hud.textContent = `💠 ${this.coinCount}/9   🎯 ${this.targets.filter(t => t.hit).length}/2`;
   }
 
   private win(): void {

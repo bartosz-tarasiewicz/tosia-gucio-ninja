@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 92" width="160" height="92">
+<defs>
+<linearGradient id="stone" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#7faca1"/><stop offset=".48" stop-color="#386c70"/><stop offset="1" stop-color="#142b43"/></linearGradient>
+<linearGradient id="jade" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#d3ffe5"/><stop offset=".5" stop-color="#57dabc"/><stop offset="1" stop-color="#118e88"/></linearGradient>
+<filter id="glow" x="-25%" y="-100%" width="150%" height="300%"><feGaussianBlur stdDeviation="5"/></filter>
+</defs>
+<ellipse cx="80" cy="74" rx="76" ry="16" fill="#09283a" opacity=".38"/>
+<path d="M9 47Q19 28 80 28Q140 28 151 47V64Q139 86 80 86Q20 86 9 64Z" fill="#1f3446" stroke="#122c3c" stroke-width="4"/>
+<ellipse cx="80" cy="47" rx="71" ry="25" fill="url(#stone)" stroke="#d4c08a" stroke-width="4"/>
+<ellipse cx="80" cy="43" rx="55" ry="16" fill="#0b6e77" opacity=".6" filter="url(#glow)"/>
+<ellipse cx="80" cy="43" rx="52" ry="16" fill="none" stroke="url(#jade)" stroke-width="2.6" stroke-dasharray="4 5"/>
+<path d="M80 28c12 5 18 9 22 15-6 5-13 8-22 11-8-3-16-6-22-11 5-6 11-10 22-15Z" fill="#153e56" stroke="#d7c386" stroke-width="2.5"/>
+<path d="M80 32q-8 6-7 11 4 6 7 7 6-4 7-7-1-5-7-11ZM66 43l-8-4m36 4 8-4" fill="none" stroke="#b2ffe9" stroke-width="3.3" stroke-linecap="round"/>
+<path d="m25 43 8 7-9 5m111-12-8 7 9 5" fill="none" stroke="#d9cb91" stroke-width="2"/>
+<path d="M16 62q13 8 29 11m70 0q20-3 29-11" stroke="#95b1a7" stroke-width="3" fill="none" opacity=".7"/>
+</svg>

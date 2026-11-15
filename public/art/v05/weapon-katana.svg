@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 160">
+<defs><linearGradient id="steel" x1="0" x2="1"><stop stop-color="#e4f8ff"/><stop offset=".38" stop-color="#a8c9dc"/><stop offset=".7" stop-color="#f9ffff"/><stop offset="1" stop-color="#7e9eb7"/></linearGradient><linearGradient id="grip" x1="0" x2="1"><stop stop-color="#19394c"/><stop offset=".6" stop-color="#214e60"/><stop offset="1" stop-color="#102536"/></linearGradient></defs>
+<path d="M38 112 Q20 75 28 34 Q32 16 52 5 Q38 33 39 52 Q34 82 47 111Z" fill="url(#steel)" stroke="#a2f3ff" stroke-width="2.5"/>
+<path d="M51 9 Q36 38 36 53 Q33 80 43 107" fill="none" stroke="#fff" stroke-opacity=".8" stroke-width="2"/>
+<path d="M19 107 Q36 102 61 105 L63 115 Q39 120 17 114Z" fill="#e6ad48" stroke="#674d38" stroke-width="3"/>
+<path d="M29 116 L43 116 L49 153 L34 156Z" fill="url(#grip)" stroke="#ebca69" stroke-width="2.5"/>
+<path d="M31 122 L44 126 M32 131 L46 134 M33 140 L47 143 M34 148 L48 150" stroke="#e9b966" stroke-width="3"/>
+<path d="M34 152 Q43 160 50 152" fill="none" stroke="#e5c665" stroke-width="5"/>
+</svg>
