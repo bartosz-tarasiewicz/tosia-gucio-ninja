@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#101c36" />
+    <meta name="description" content="Tosia i Gucio — pierwsza kooperacyjna przygoda ninja w 3D." />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Tosia & Gucio — Ninja Adventure</title>
+  </head>
+  <body>
+    <canvas id="game" aria-label="Trójwymiarowa gra Tosia i Gucio"></canvas>
+    <div id="hud">
+      <div class="hud-top">
+        <div class="brand"><span class="brand-symbol">✦</span> TOSIA <span class="and">&</span> GUCIO <span class="brand-sub">NINJA ADVENTURE</span></div>
+        <div class="counter-group"><div class="target-count">🎯 <span id="targets">0/2</span></div><div class="coin-count"><span class="coin-icon">●</span> <span id="coins">0</span> / 6</div></div>
+      </div>
+      <div id="objective" class="objective" role="status" aria-live="polite">Stańcie razem na dwóch świecących płytach, żeby otworzyć bramę.</div>
+      <div id="bottom-controls">
+        <div class="player-hint tosia"><span class="player-icon">T</span><span><strong>TOSIA</strong><small>W A S D · RUCH<br />SPACJA · SKOK<br />Q · SHURIKEN</small></span></div>
+        <div class="level-hint">ŚWIĄTYNIA DWÓCH ŻYWIOŁÓW <span>PROTOTYP 02</span></div>
+        <div class="player-hint gucio"><span class="player-icon">G</span><span><strong>GUCIO</strong><small>STRZAŁKI · RUCH<br />ENTER · SKOK<br />PRAWY SHIFT · SHURIKEN</small></span></div>
+      </div>
+    </div>
+    <div id="complete" class="overlay hidden" role="dialog" aria-label="Misja zakończona">
+      <div class="complete-card">
+        <div class="win-icon">✦</div>
+        <p class="eyebrow">MISJA WYKONANA</p>
+        <h1>Świetna robota,<br />ninja!</h1>
+        <p>Otworzyliście bramę dzięki współpracy i dotarliście do portalu.</p>
+        <div class="win-coins">Zebrane monety: <strong id="end-coins">0 / 6</strong></div>
+        <button id="restart" type="button">ZAGRAJ PONOWNIE ↻</button>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

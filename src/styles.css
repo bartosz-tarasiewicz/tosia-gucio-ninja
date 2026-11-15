@@ -1,0 +1,36 @@
+:root { font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif; color: #f9f7e8; background: #101d30; font-synthesis: none; }
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; overflow: hidden; }
+#game { display: block; height: 100%; width: 100%; outline: none; touch-action: none; }
+#hud { position: fixed; inset: 0; z-index: 2; pointer-events: none; }
+.hud-top { display: flex; align-items: center; justify-content: space-between; padding: 22px 30px; gap: 12px; background: linear-gradient(to bottom, rgba(9,23,37,.84), transparent); }
+.brand { font-size: clamp(16px, 1.7vw, 23px); letter-spacing: .07em; font-weight: 950; white-space: nowrap; }
+.brand-symbol { color: #f6bd51; margin-right: 8px; }
+.and { color: #73e1d5; }
+.brand-sub { display: block; color: #c6e0cf; opacity: .78; font-size: 10px; letter-spacing: .26em; font-weight: 700; margin-top: 3px; }
+.coin-count { border: 1px solid rgba(244,229,188,.38); padding: 9px 16px; font-size: 16px; background: rgba(11,31,45,.74); border-radius: 50px; font-weight: 900; }
+.coin-icon { color: #ffd45a; font-size: 24px; vertical-align: -1px; }
+.objective { position: absolute; top: 95px; left: 50%; transform: translateX(-50%); border: 1px solid rgba(218,255,241,.27); border-radius: 12px; background: rgba(13,35,51,.82); padding: 12px 19px; text-align: center; max-width: min(93vw,680px); width: max-content; line-height: 1.35; font-size: 14px; box-shadow: 0 8px 24px rgba(0,0,0,.14); }
+.objective.achieved { background: rgba(7,76,66,.82); }
+#bottom-controls { position: absolute; left: 24px; bottom: 20px; right: 24px; display: flex; justify-content: space-between; align-items: end; gap: 10px; }
+.player-hint { display: flex; gap: 12px; align-items: center; border: 1px solid rgba(255,255,255,.22); padding: 10px 14px; background: rgba(10,29,45,.8); border-radius: 16px; min-width: 205px; }
+.player-icon { display: grid; place-items: center; width: 47px; height: 47px; font-size: 23px; font-weight: 1000; color: #09272c; background: #4ddcc9; border-radius: 12px; flex-shrink: 0; }
+.gucio .player-icon { background: #f6c057; color: #3e2818; }
+.player-hint strong { display: block; font-size: 13px; letter-spacing: .12em; margin-bottom: 4px; }
+.player-hint small { font-size: 10px; letter-spacing: .05em; opacity: .81; line-height: 1.5; font-weight: 700; }
+.level-hint { font-weight: 800; letter-spacing: .11em; font-size: 11px; text-align: center; opacity: .87; text-shadow: 0 2px 7px #112438; }
+.level-hint span { display: block; margin-top: 7px; font-size: 9px; font-weight: 600; opacity: .7; letter-spacing: .24em; }
+.overlay { position: fixed; z-index: 5; inset: 0; background: rgba(5,19,34,.86); display: flex; align-items: center; justify-content: center; text-align: center; padding: 25px; backdrop-filter: blur(8px); }
+.hidden { display: none; }
+.complete-card { width: min(94vw, 510px); border: 1px solid rgba(255,236,158,.34); background: linear-gradient(160deg, #254653, #0e2536); padding: 45px 44px; border-radius: 25px; box-shadow: 0 25px 100px rgba(0,0,0,.45); }
+.win-icon { font-size: 54px; color: #f3c961; }
+.eyebrow { font-size: 11px; font-weight: 900; letter-spacing: .26em; color: #63dfc7; }
+.complete-card h1 { font-size: clamp(33px, 5vw, 48px); line-height: 1.05; margin: 15px auto 20px; }
+.complete-card > p:not(.eyebrow) { color: #cddedb; line-height: 1.7; }
+.win-coins { margin: 20px 0 25px; font-size: 15px; }
+#restart { background: #f2c059; color: #132a39; border: none; border-radius: 13px; font-size: 14px; letter-spacing: .06em; font-weight: 900; padding: 17px 24px; cursor: pointer; }
+#restart:hover { background: #ffde81; }
+@media (max-width: 740px) { .hud-top { padding: 15px 13px; } .objective { top: 83px; font-size: 12px; } #bottom-controls { left: 8px; right: 8px; bottom: 8px; } .player-hint { min-width: auto; gap: 5px; padding: 7px; } .player-icon { width: 32px; height: 32px; font-size: 17px; } .player-hint small { font-size: 8px; } .level-hint { display: none; } }
+
+.counter-group {display:flex; align-items:center; gap:10px;}
+.target-count {border:1px solid rgba(244,229,188,.38);padding:12px 15px;background:rgba(11,31,45,.74);border-radius:50px;font-weight:850;}
