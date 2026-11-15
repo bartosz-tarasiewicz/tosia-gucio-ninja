@@ -43,6 +43,7 @@ class NinjaTemple extends Phaser.Scene {
   private queuedJump: Record<PlayerId, number> = { tosia: -Infinity, gucio: -Infinity };
   private hud?: HTMLElement;
   private instruction?: HTMLElement;
+  private partyHint?: Phaser.GameObjects.Text;
 
   constructor() { super('NinjaTemple'); }
 
@@ -132,6 +133,14 @@ class NinjaTemple extends Phaser.Scene {
     prepareNinjaFrameAtlas(this, 'gucio');
     this.heroes = [this.addHero('tosia', 112, 480), this.addHero('gucio', 188, 480)];
     for (const hero of this.heroes) this.physics.add.collider(hero.sprite, this.platforms);
+    this.partyHint = this.add.text(640, 154, 'Poczekaj na drugiego ninja!', {
+      fontFamily: 'Arial, sans-serif',
+      fontSize: '21px',
+      fontStyle: 'bold',
+      color: '#fff1bf',
+      backgroundColor: '#153749e6',
+      padding: { x: 16, y: 9 }
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(40).setVisible(false);
 
     this.cameras.main.setBounds(0, 0, WORLD_WIDTH, 720);
     this.physics.world.setBounds(0, -140, WORLD_WIDTH, 1200);
@@ -321,6 +330,7 @@ class NinjaTemple extends Phaser.Scene {
 
   update(time: number): void {
     if (this.ended) return;
+    let waitingForPartner: string | null = null;
     for (const hero of this.heroes) {
       const body = hero.sprite.body as Phaser.Physics.Arcade.Body;
       const { left, right, jump, attack } = hero.controls;
@@ -335,6 +345,9 @@ class NinjaTemple extends Phaser.Scene {
       const maxOutwardSpeed = available * 1000 / Math.max(1, this.game.loop.delta);
       const speed = movingAway ? Math.min(240, maxOutwardSpeed) : 240;
       hero.sprite.setVelocityX(axis * speed);
+      if (movingAway && speed < 8) {
+        waitingForPartner = partner.id === 'tosia' ? 'Poczekaj na Tosię!' : 'Poczekaj na Gucia!';
+      }
       if (axis) {
         hero.facing = axis;
         hero.visual.setFlipX(axis < 0);
@@ -388,6 +401,11 @@ class NinjaTemple extends Phaser.Scene {
       }
       // Respawn before the ninja disappears below the visible playfield.
       if (hero.sprite.y > 740) this.resetHero(hero);
+    }
+
+    if (this.partyHint) {
+      this.partyHint.setVisible(waitingForPartner !== null);
+      if (waitingForPartner) this.partyHint.setText(waitingForPartner);
     }
 
     // The previous implementation shifted BOTH heroes here whenever their
