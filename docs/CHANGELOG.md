@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0 – Ninja Visuals
+- Nowe modele ninja: maski, opaski, pasy, pochwy mieczy i ruchome kończyny.
+- Animacje biegu, bezczynności, skoku i rzutu shurikenem.
+- Kolorowe dekoracje świątyni: chorągwie, latarnie, dach bramy, bambusy i kamienie.
+- Sterowanie, tarcze treningowe, monety, brama i portal pozostają bez zmian.
+- Cała grafika jest proceduralna; to autorskie figurki inspirowane zabawkami, bez oficjalnych zasobów LEGO.
+
 ## 0.2.0 – Shuriken Training
 - Tosia: Q, Gucio: prawy Shift – rzut shurikenem.
 - Dwa cele treningowe (po bokach przed bramą). Podejdź na około 4 jednostki od tarczy i naciśnij atak.
