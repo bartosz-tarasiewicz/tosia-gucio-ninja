@@ -3,14 +3,23 @@ import Phaser from 'phaser';
 
 type PlayerId = 'tosia' | 'gucio';
 type Controls = { left: Phaser.Input.Keyboard.Key; right: Phaser.Input.Keyboard.Key; jump: Phaser.Input.Keyboard.Key; attack: Phaser.Input.Keyboard.Key };
-type Hero = { id: PlayerId; sprite: Phaser.Physics.Arcade.Sprite; controls: Controls; spawnX: number; spawnY: number; facing: number };
+type Hero = {
+  id: PlayerId;
+  // Invisible Arcade sprite handles gameplay physics, independent of animation.
+  sprite: Phaser.Physics.Arcade.Sprite;
+  visual: Phaser.GameObjects.Image;
+  controls: Controls;
+  spawnX: number;
+  spawnY: number;
+  facing: number;
+};
 type Coin = { sprite: Phaser.GameObjects.Image; x: number; y: number; collected: boolean };
 type Target = { x: number; y: number; body: Phaser.GameObjects.Image; hit: boolean };
 
 const WORLD_WIDTH = 2350;
 const GROUND_Y = 607;
-// Max jump height: ~225 px at gravity 1150. Previously 127 px made the first ledge unreachable.
-const JUMP_VELOCITY = -720;
+// Approx. 184px at gravity 1150: reaches 148px-high first ledge without excessive airtime.
+const JUMP_VELOCITY = -650;
 const COYOTE_TIME_MS = 115;
 const JUMP_BUFFER_MS = 135;
 // A shared camera cannot keep both ninjas visible once they are over 1280px apart.
@@ -282,6 +291,13 @@ class NinjaTemple extends Phaser.Scene {
       sprite.setSize(image.width * 0.55, image.height * 0.86)
         .setOffset(image.width * 0.225, image.height * 0.12);
     } else sprite.setSize(56, 114).setOffset(30, 20);
+    // Do not transform the collision body when animating. Separate artwork
+    // remains bottom-aligned with the physics body so feet meet the ground.
+    const visual = this.add.image(x, y, hasPainted ? paintedKey : id)
+      .setDisplaySize(hasPainted ? 108 : 97, hasPainted ? 152 : 123)
+      .setOrigin(0.5, 1)
+      .setDepth(10);
+    sprite.setVisible(false);
     sprite.setBounce(0);
     sprite.setMaxVelocity(245, 900);
     const kb = this.input.keyboard;
@@ -290,7 +306,7 @@ class NinjaTemple extends Phaser.Scene {
     const controls = id === 'tosia'
       ? { left: key('A'), right: key('D'), jump: key('SPACE'), attack: key('Q') }
       : { left: key('LEFT'), right: key('RIGHT'), jump: key('ENTER'), attack: key('SHIFT') };
-    return { id, sprite, controls, spawnX: x, spawnY: y, facing: 1 };
+    return { id, sprite, visual, controls, spawnX: x, spawnY: y, facing: 1 };
   }
 
   update(time: number): void {
@@ -302,7 +318,7 @@ class NinjaTemple extends Phaser.Scene {
       hero.sprite.setVelocityX(axis * 240);
       if (axis) {
         hero.facing = axis;
-        hero.sprite.setFlipX(axis < 0);
+        hero.visual.setFlipX(axis < 0);
       }
       // A forgiving jump, plus coyote time and input buffering for two kids on one keyboard.
       if (body.blocked.down || body.touching.down) this.lastGrounded[hero.id] = time;
@@ -313,11 +329,25 @@ class NinjaTemple extends Phaser.Scene {
         this.queuedJump[hero.id] = -Infinity;
         this.lastGrounded[hero.id] = -Infinity;
       }
-      const jumping = !body.blocked.down;
-      if (!this.textures.exists(`painted-${hero.id}`)) {
-        hero.sprite.setTexture(jumping ? `${hero.id}-jump` : hero.id);
-      }
-      hero.sprite.setAngle(jumping ? hero.facing * -5 : axis ? Math.sin(time * 0.016) * 2.4 : 0);
+      const jumping = !body.blocked.down && !body.touching.down;
+      // Animate the painted illustration independently of collision:
+      // breathing idle, run cadence, airborne lean, and brief attack gesture.
+      // Real articulated frame animations will be a separate art task.
+      const visual = hero.visual;
+      const sourceKey = this.textures.exists(`painted-${hero.id}`) ? `painted-${hero.id}` : hero.id;
+      if (visual.texture.key !== sourceKey) visual.setTexture(sourceKey);
+      const running = axis !== 0 && !jumping;
+      const cycle = time * 0.019 + (hero.id === 'gucio' ? 1.2 : 0);
+      const runBob = running ? Math.abs(Math.sin(cycle)) * 3.5 : 0;
+      const idleBreath = !jumping && !running ? Math.sin(time * 0.0035) * 0.006 : 0;
+      const stretch = jumping ? 1.045 : running ? 1 + Math.sin(cycle * 2) * 0.022 : 1 + idleBreath;
+      const squash = jumping ? 0.96 : running ? 1 - Math.sin(cycle * 2) * 0.014 : 1;
+      visual.setScale((visual.width > 150 ? 108 : 97) / visual.width * squash,
+        (visual.height > 160 ? 152 : 123) / visual.height * stretch);
+      visual.setAngle(jumping ? hero.facing * (body.velocity.y < 0 ? -7 : 5)
+        : running ? Math.sin(cycle) * 3.5 : Math.sin(time * 0.002) * 0.9);
+      // Bottom anchoring removes the apparent floating from sprite/body offset.
+      visual.setPosition(hero.sprite.x, body.bottom + (running ? runBob : 0) + 2);
       if (Phaser.Input.Keyboard.JustDown(attack) && time - this.lastAttack[hero.id] > 240) {
         this.lastAttack[hero.id] = time;
         this.attack(hero);
@@ -352,7 +382,14 @@ class NinjaTemple extends Phaser.Scene {
       if (coin.collected) continue;
       coin.sprite.y = coin.y + Math.sin(time / 300 + coin.x) * 5;
       coin.sprite.setScale(0.55 + Math.sin(time / 260 + coin.x) * 0.022);
-      if (this.heroes.some(hero => Phaser.Math.Distance.Between(hero.sprite.x, hero.sprite.y, coin.x, coin.sprite.y) < 51)) {
+      // A seal can be grabbed with any part of the character's visible body,
+      // not only near the sprite pivot (which made elevated badges seem broken).
+      const sealArea = new Phaser.Geom.Rectangle(coin.x - 24, coin.sprite.y - 28, 48, 56);
+      if (this.heroes.some(hero => {
+        const body = hero.sprite.body as Phaser.Physics.Arcade.Body;
+        const reach = new Phaser.Geom.Rectangle(body.x - 8, body.y - 8, body.width + 16, body.height + 16);
+        return Phaser.Geom.Intersects.RectangleToRectangle(reach, sealArea);
+      })) {
         coin.collected = true;
         coin.sprite.destroy();
         this.coinCount++;
@@ -369,6 +406,8 @@ class NinjaTemple extends Phaser.Scene {
   private resetHero(hero: Hero): void {
     hero.sprite.setPosition(hero.spawnX, hero.spawnY);
     hero.sprite.setVelocity(0, 0);
+    const body = hero.sprite.body as Phaser.Physics.Arcade.Body;
+    hero.visual.setPosition(hero.spawnX, body.bottom + 2);
   }
 
   private unlockBridge(): void {
