@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.2 — Most i kamera kooperacyjna
+- Po odblokowaniu pojawia się osobny, zdobiony kamienny most zamiast kawałka rozciągniętego podłoża. Grafika łączy się z oboma brzegami, a kolizja ma własny niezmieniony obszar.
+- Most płynnie się pojawia, po tym jak obie postacie staną na runicznych płytach.
+- Gracze pozostają w obrębie wspólnej kamery dzięki limitowi wzajemnej odległości, a postać spadająca z planszy odradza się przed zniknięciem pod ekranem.
+- Bez zmiany wyglądu zatwierdzonych bohaterów i tła. Nadal wymagany test w przeglądarce.
+
 ## 0.5.1 — Accessible platforms & dragon seals
 - Skok: większy zasięg (ok. 225 px zamiast 127 px), wybaczanie spóźnionego/wczesnego naciśnięcia (jump buffer i coyote time). Wyższe podesty są jednostronne: można przeskoczyć przez nie od dołu i wylądować na górze.
 - Likwidacja jaskrawej obwódki: kadrowanie i miękkie krawędzie malowanych podestów.
