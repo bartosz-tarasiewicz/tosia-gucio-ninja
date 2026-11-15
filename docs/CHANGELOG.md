@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.3 — Ruch postaci i responsywność
+- Obniżona wysokość skoku: prędkość pionowa -650 zamiast -720 (około 184 px zasięgu zamiast 225 px przy grawitacji 1150).
+- Grafika postaci oddzielona od niewidocznego hitboxa fizycznego: stopy są przytwierdzone do fizycznej linii podłoża.
+- Drobne animacje graficzne bez nowych klatek: oddech, rytm biegu, pochylenie w skoku i krótki gest ataku. To nadal NIE jest pełny sprite-sheet biegu.
+- Poprawiony obszar podnoszenia pieczęci: aktywacja przy zetknięciu obrysu postaci z amuletem, nie tylko przy zbliżeniu środka.
+- Bez zmian w moście i oprawie tła; do sprawdzenia w przeglądarce.
+
 ## 0.5.2 — Most i kamera kooperacyjna
 - Po odblokowaniu pojawia się osobny, zdobiony kamienny most zamiast kawałka rozciągniętego podłoża. Grafika łączy się z oboma brzegami, a kolizja ma własny niezmieniony obszar.
 - Most płynnie się pojawia, po tym jak obie postacie staną na runicznych płytach.
