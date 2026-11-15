@@ -22,12 +22,12 @@ Test ręczny: otwórz dwa okna? **Nie** — używaj jednego okna i dwóch graczy
 | ID | Krok | Oczekiwany rezultat |
 |---|---|---|
 | T11 | Tosia naciska Q stojąc blisko tarczy dojo | Widoczny łuk cięcia miecza; tarcza zostaje zaliczona tylko w zasięgu i przed postacią |
-| T12 | Gucio naciska Shift, stojąc blisko tarczy dojo | Dwa miecze wykonują zamach, a trafienie zalicza się tylko z bliska |
-| T13 | Q oraz Shift w tym samym czasie | Oboje mogą atakować niezależnie; nie blokują sobie sterowania |
+| T12 | Gucio naciska kropkę (.), stojąc blisko tarczy dojo | Dwa miecze wykonują zamach, a trafienie zalicza się tylko z bliska |
+| T13 | Q oraz kropka (.) w tym samym czasie | Oboje mogą atakować niezależnie; nie blokują sobie sterowania |
 | T14 | Idź i skacz postaciami, obserwując obie sylwetki | Kończyny zmieniają położenie, animacja nie wpływa na kolizje ani pozycję stóp |
 | T15 | Rozdziel postacie do granicy wspólnego ekranu | Postać oddalająca się jest zatrzymywana, druga nie jest przeciągana |
 | T16 | Zagraj do końca i uruchom ponownie | Most, pieczęcie, kamera i portal nadal działają |
-| T17 | Porównaj postacie | Tosia ma katanę; Gucio dwa miecze i odmienny atak; grafika i broń nie mają widocznych prostokątnych obwódek |
+| T17 | Porównaj postacie | Tosia ma katanę; Gucio dwa miecze zakotwiczone w dłoniach i odmienny atak; grafika i broń nie mają widocznych prostokątnych obwódek |
 
 **Do odbioru wizualnego:** Nowe projekty pełnych postaci inspirowane minifigurkami ninja są opracowane oddzielnie; nie uznawać ich za zintegrowane z grą, dopóki nie trafią do zasobów gry i nie przejdą playtestu.
 
