@@ -19,14 +19,12 @@ class NinjaTemple extends Phaser.Scene {
   private plates: Phaser.GameObjects.Arc[] = [];
   private bridge?: Phaser.Physics.Arcade.Image;
   private bridgeArtwork?: Phaser.GameObjects.Graphics;
-  private portal?: Phaser.GameObjects.Container;
   private gateOpen = false;
   private ended = false;
   private coinCount = 0;
   private lastAttack: Record<PlayerId, number> = { tosia: 0, gucio: 0 };
   private hud?: HTMLElement;
   private instruction?: HTMLElement;
-  private backdrop?: Phaser.GameObjects.Image;
 
   constructor() { super('NinjaTemple'); }
 
@@ -44,7 +42,7 @@ class NinjaTemple extends Phaser.Scene {
     art.generateTexture('pixel', 4, 4);
     art.destroy();
 
-    this.backdrop = this.add.image(640, 360, 'background')
+    this.add.image(640, 360, 'background')
       .setDisplaySize(1280, 720).setScrollFactor(0).setDepth(-20);
 
     // Parallax layer: light atmospheric mist, independent of collision.
@@ -89,7 +87,6 @@ class NinjaTemple extends Phaser.Scene {
     const inner = this.add.ellipse(0, 0, 75, 140, 0x1b7196, 0.86);
     const halo = this.add.ellipse(0, 0, 145, 200, 0x84fbea, 0.10);
     portal.add([halo, rim, inner]);
-    this.portal = portal;
     this.tweens.add({ targets: halo, scaleX: 1.13, scaleY: 1.13, alpha: 0.36, yoyo: true, repeat: -1, duration: 1200 });
 
     this.heroes = [this.addHero('tosia', 112, 480), this.addHero('gucio', 188, 480)];
