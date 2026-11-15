@@ -4,6 +4,7 @@
 - Po odblokowaniu pojawia się osobny, zdobiony kamienny most zamiast kawałka rozciągniętego podłoża. Grafika łączy się z oboma brzegami, a kolizja ma własny niezmieniony obszar.
 - Most płynnie się pojawia, po tym jak obie postacie staną na runicznych płytach.
 - Gracze pozostają w obrębie wspólnej kamery dzięki limitowi wzajemnej odległości, a postać spadająca z planszy odradza się przed zniknięciem pod ekranem.
+- Dolna tekstura podłoża jest bezszwowym, lustrzanie powtarzanym fragmentem naturalnej skały, wspólnym dla obu brzegów. Nie powiela już wielkich prostokątnych zrzutów sceny.
 - Bez zmiany wyglądu zatwierdzonych bohaterów i tła. Nadal wymagany test w przeglądarce.
 
 ## 0.5.1 — Accessible platforms & dragon seals
