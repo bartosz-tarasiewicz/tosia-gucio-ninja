@@ -141,13 +141,19 @@ class NinjaTemple extends Phaser.Scene {
   private prepareGroundStrip(): void {
     if (!this.textures.exists('painted-ground')) return;
     const source = this.textures.get('painted-ground').getSourceImage() as HTMLImageElement;
-    const texture = this.textures.createCanvas('painted-ground-strip', 448, 112);
+    // Build a genuinely seamless texture: mirror the clean central rock strip.
+    // The original 667x189 crop includes foreground flowers and unrelated UI
+    // near the left and bottom edges; those must never be tiled into the level.
+    const texture = this.textures.createCanvas('painted-ground-strip', 512, 112);
     if (!texture) return;
     const ctx = texture.getContext();
-    ctx.clearRect(0, 0, 448, 112);
-    // Exclude pink foreground flowers (left) and the UI from the source's bottom.
-    // x: 206..656, y: 29..141 of the original 667x189 image.
-    ctx.drawImage(source, 206, 29, 448, 112, 0, 0, 448, 112);
+    ctx.clearRect(0, 0, 512, 112);
+    ctx.drawImage(source, 265, 26, 256, 112, 0, 0, 256, 112);
+    ctx.save();
+    ctx.translate(512, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(source, 265, 26, 256, 112, 0, 0, 256, 112);
+    ctx.restore();
     texture.refresh();
   }
 
@@ -227,19 +233,18 @@ class NinjaTemple extends Phaser.Scene {
   }
 
   private createPlatformArtwork(x: number, y: number, width: number, height: number): Phaser.GameObjects.Graphics | Phaser.GameObjects.Image | Phaser.GameObjects.TileSprite | Phaser.GameObjects.Container {
-    // Long right-hand ground must NOT stretch the screenshot-like foreground
-    // asset: it caused the large blurred rectangle seen in the v0.5 review.
-    if (height >= 100 && width > 900 && this.textures.exists('painted-ground-strip')) {
+    // Use the same seamless rock pattern on BOTH banks. The old left bank
+    // stretched the original screenshot; the right repeated non-matching crops.
+    if (height >= 100 && this.textures.exists('painted-ground-strip')) {
       const top = y - height / 2;
       const left = x - width / 2;
-      const edgeWidth = this.textures.exists('painted-ground-edge') ? 75 : 0;
+      // The second island receives an irregular silhouette at its left edge.
+      const edgeWidth = width > 900 && this.textures.exists('painted-ground-edge') ? 75 : 0;
       const bodyWidth = width - edgeWidth;
-      const body = this.add.tileSprite(left + edgeWidth + bodyWidth / 2, top - 6 + 56, bodyWidth, 112, 'painted-ground-strip');
+      const body = this.add.tileSprite(left + edgeWidth + bodyWidth / 2, top + 50, bodyWidth, 112, 'painted-ground-strip');
       if (!edgeWidth) return body.setDepth(0);
-      const cliff = this.add.image(left + edgeWidth / 2, top - 6 + 74, 'painted-ground-edge')
+      const cliff = this.add.image(left + edgeWidth / 2, top + 68, 'painted-ground-edge')
         .setDisplaySize(edgeWidth + 12, 148);
-      // Terrain parts are kept in one visual group; only the invisible
-      // Phaser static body is used for walking/collision.
       return this.add.container(0, 0, [body, cliff]).setDepth(0);
     }
     const painted = height >= 100 ? 'painted-ground'
