@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.1 – Figurki w stylu LEGO (eksperymentalnie)
+- Szerszy, zwężany tułów i zaokrąglone ramiona oraz dłonie z otwartym uchwytem C.
+- Detale stroju, opaska i nakrycie głowy, kolorowe oznaczenia postaci.
+- Kamera bliżej akcji, wyraźniejsze światło.
+- Brak zmian mechaniki, sterowania i zagadek.
+- Test wizualny w przeglądarce wymagany; projekt nie wykorzystuje oficjalnych modeli LEGO.
+
 ## 0.3.0 – Ninja Visuals
 - Nowe modele ninja: maski, opaski, pasy, pochwy mieczy i ruchome kończyny.
 - Animacje biegu, bezczynności, skoku i rzutu shurikenem.
