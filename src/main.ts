@@ -18,7 +18,7 @@ class NinjaTemple extends Phaser.Scene {
   private targets: Target[] = [];
   private plates: Phaser.GameObjects.Arc[] = [];
   private bridge?: Phaser.Physics.Arcade.Image;
-  private bridgeArtwork?: Phaser.GameObjects.Graphics;
+  private bridgeArtwork?: Phaser.GameObjects.Graphics | Phaser.GameObjects.Image;
   private gateOpen = false;
   private ended = false;
   private coinCount = 0;
@@ -30,6 +30,13 @@ class NinjaTemple extends Phaser.Scene {
 
   preload(): void {
     this.load.svg('background', '/art/forest.svg');
+    // Hand-painted v0.5 assets live in public/art/v05. On a clean checkout
+    // without the optional art pack, the v0.4 vector art remains playable.
+    this.load.image('painted-bg', '/art/v05/background.webp');
+    this.load.image('painted-platform', '/art/v05/platform.webp');
+    this.load.image('painted-ground', '/art/v05/ground.webp');
+    this.load.image('painted-tosia', '/art/v05/tosia.webp');
+    this.load.image('painted-gucio', '/art/v05/gucio.webp');
     this.load.svg('tosia', '/art/tosia.svg', { width: 116, height: 146 });
     this.load.svg('gucio', '/art/gucio.svg', { width: 116, height: 146 });
     this.load.svg('tosia-jump', '/art/tosia-jump.svg', { width: 116, height: 146 });
@@ -42,7 +49,8 @@ class NinjaTemple extends Phaser.Scene {
     art.generateTexture('pixel', 4, 4);
     art.destroy();
 
-    this.add.image(640, 360, 'background')
+    const bgKey = this.textures.exists('painted-bg') ? 'painted-bg' : 'background';
+    this.add.image(640, 360, bgKey)
       .setDisplaySize(1280, 720).setScrollFactor(0).setDepth(-20);
 
     // Parallax layer: light atmospheric mist, independent of collision.
@@ -112,7 +120,16 @@ class NinjaTemple extends Phaser.Scene {
     collider.setDisplaySize(width, height).refreshBody().setVisible(false);
   }
 
-  private createPlatformArtwork(x: number, y: number, width: number, height: number): Phaser.GameObjects.Graphics {
+  private createPlatformArtwork(x: number, y: number, width: number, height: number): Phaser.GameObjects.Graphics | Phaser.GameObjects.Image {
+    const painted = height >= 100 ? 'painted-ground' : 'painted-platform';
+    if (this.textures.exists(painted)) {
+      // Align the painted moss edge with the invisible physics surface.
+      const artHeight = height >= 100 ? Math.max(height + 62, width * 0.25) : Math.max(height + 85, width * 0.39);
+      const top = y - height / 2;
+      return this.add.image(x, top - 6 + artHeight / 2, painted)
+        .setDisplaySize(width, artHeight).setDepth(0);
+    }
+
     const g = this.add.graphics({ x, y }).setDepth(0);
     g.fillStyle(PALETTE.rock).fillRoundedRect(-width / 2, -height / 2, width, height, 10);
     g.fillStyle(PALETTE.stone).fillRect(-width / 2 + 8, -height / 2 + 18, width - 16, Math.max(2, height - 30));
@@ -126,9 +143,18 @@ class NinjaTemple extends Phaser.Scene {
   }
 
   private addHero(id: PlayerId, x: number, y: number): Hero {
-    const sprite = this.physics.add.sprite(x, y, id).setDepth(10).setScale(0.84);
+    const paintedKey = `painted-${id}`;
+    const hasPainted = this.textures.exists(paintedKey);
+    const sprite = this.physics.add.sprite(x, y, hasPainted ? paintedKey : id).setDepth(10);
+    if (hasPainted) sprite.setDisplaySize(108, 152);
+    else sprite.setScale(0.84);
     sprite.setCollideWorldBounds(true);
-    sprite.setSize(56, 114).setOffset(30, 20);
+    // Hitbox stays compact, even for high-resolution transparent art.
+    if (hasPainted) {
+      const image = this.textures.get(paintedKey).getSourceImage() as HTMLImageElement;
+      sprite.setSize(image.width * 0.55, image.height * 0.86)
+        .setOffset(image.width * 0.225, image.height * 0.12);
+    } else sprite.setSize(56, 114).setOffset(30, 20);
     sprite.setBounce(0);
     sprite.setMaxVelocity(245, 900);
     const kb = this.input.keyboard;
@@ -153,8 +179,10 @@ class NinjaTemple extends Phaser.Scene {
       }
       if (Phaser.Input.Keyboard.JustDown(jump) && body.blocked.down) hero.sprite.setVelocityY(-540);
       const jumping = !body.blocked.down;
-      hero.sprite.setTexture(jumping ? `${hero.id}-jump` : hero.id);
-      hero.sprite.setAngle(!jumping && axis ? Math.sin(time * 0.016) * 2.4 : 0);
+      if (!this.textures.exists(`painted-${hero.id}`)) {
+        hero.sprite.setTexture(jumping ? `${hero.id}-jump` : hero.id);
+      }
+      hero.sprite.setAngle(jumping ? hero.facing * -5 : axis ? Math.sin(time * 0.016) * 2.4 : 0);
       if (Phaser.Input.Keyboard.JustDown(attack) && time - this.lastAttack[hero.id] > 240) {
         this.lastAttack[hero.id] = time;
         this.attack(hero);
