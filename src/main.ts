@@ -20,9 +20,9 @@ class NinjaTemple extends Phaser.Scene {
   private heroes!: [Hero, Hero];
   private coins: Coin[] = [];
   private targets: Target[] = [];
-  private plates: Phaser.GameObjects.Arc[] = [];
+  private plates: Phaser.GameObjects.Image[] = [];
   private bridge?: Phaser.Physics.Arcade.Image;
-  private bridgeArtwork?: Phaser.GameObjects.Graphics | Phaser.GameObjects.Image | Phaser.GameObjects.TileSprite;
+  private bridgeArtwork?: Phaser.GameObjects.Graphics | Phaser.GameObjects.Image | Phaser.GameObjects.TileSprite | Phaser.GameObjects.Container;
   private gateOpen = false;
   private ended = false;
   private coinCount = 0;
@@ -45,6 +45,7 @@ class NinjaTemple extends Phaser.Scene {
     this.load.image('painted-gucio', '/art/v05/gucio.webp');
     this.load.svg('dragon-seal', '/art/v05/dragon-seal.svg', { width: 80, height: 96 });
     this.load.svg('dojo-target', '/art/v05/dojo-target.svg', { width: 100, height: 112 });
+    this.load.svg('rune-pedestal', '/art/v05/rune-pedestal.svg', { width: 160, height: 92 });
     this.load.svg('tosia', '/art/tosia.svg', { width: 116, height: 146 });
     this.load.svg('gucio', '/art/gucio.svg', { width: 116, height: 146 });
     this.load.svg('tosia-jump', '/art/tosia-jump.svg', { width: 116, height: 146 });
@@ -64,6 +65,7 @@ class NinjaTemple extends Phaser.Scene {
     // Parallax layer: light atmospheric mist, independent of collision.
     this.add.rectangle(1170, 575, WORLD_WIDTH, 160, 0x90d7c6, 0.06).setDepth(-10);
     this.prepareGroundStrip();
+    this.prepareGroundCliffEdge();
     this.prepareFloatingPlatformArt();
     this.platforms = this.physics.add.staticGroup();
 
@@ -82,10 +84,12 @@ class NinjaTemple extends Phaser.Scene {
     this.bridge.setDisplaySize(260, 100).refreshBody().setVisible(false).disableBody(true, true);
 
     for (const x of [460, 615]) {
-      const plate = this.add.circle(x, GROUND_Y - 9, 30, x === 460 ? 0x36ddc0 : 0xffd36e, 0.68)
-        .setStrokeStyle(5, 0xffedaf).setDepth(2);
+      this.add.ellipse(x, GROUND_Y - 4, 106, 23, x === 460 ? 0x47f4d3 : 0xffe394, 0.20).setDepth(1);
+      const plate = this.add.image(x, GROUND_Y - 9, 'rune-pedestal')
+        .setDisplaySize(100, 57)
+        .setTint(x === 460 ? 0xc6ffed : 0xffe0a7)
+        .setDepth(2);
       this.plates.push(plate);
-      this.add.ellipse(x, GROUND_Y - 4, 76, 17, 0xffffff, 0.13).setDepth(1);
     }
 
     for (const [x, y] of [[135, 551], [285, 429], [490, 321], [590, 548], [1050, 550], [1225, 443], [1550, 344], [1805, 420], [2020, 544]]) {
@@ -171,6 +175,37 @@ class NinjaTemple extends Phaser.Scene {
     image.refresh();
   }
 
+  /**
+   * A mossy, jagged cliff silhouette replaces the hard rectangular left edge
+   * of the right-hand island. This is artwork only; colliders are unchanged.
+   */
+  private prepareGroundCliffEdge(): void {
+    if (!this.textures.exists('painted-ground')) return;
+    const source = this.textures.get('painted-ground').getSourceImage() as HTMLImageElement;
+    const texture = this.textures.createCanvas('painted-ground-edge', 120, 160);
+    if (!texture) return;
+    const ctx = texture.getContext();
+    ctx.clearRect(0, 0, 120, 160);
+    ctx.drawImage(source, 230, 25, 200, 130, 0, 0, 120, 160);
+    ctx.globalCompositeOperation = 'destination-in';
+    ctx.beginPath();
+    ctx.moveTo(24, 0);
+    ctx.quadraticCurveTo(7, 10, 18, 32);
+    ctx.lineTo(8, 45);
+    ctx.lineTo(25, 65);
+    ctx.lineTo(12, 82);
+    ctx.lineTo(21, 98);
+    ctx.lineTo(3, 123);
+    ctx.lineTo(19, 151);
+    ctx.lineTo(120, 160);
+    ctx.lineTo(120, 0);
+    ctx.closePath();
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+    texture.refresh();
+  }
+
   private addPlatform(x: number, y: number, width: number, height: number): void {
     this.createPlatformArtwork(x, y, width, height);
     const collider = this.platforms.create(x, y, 'pixel') as Phaser.Physics.Arcade.Image;
@@ -186,12 +221,21 @@ class NinjaTemple extends Phaser.Scene {
     }
   }
 
-  private createPlatformArtwork(x: number, y: number, width: number, height: number): Phaser.GameObjects.Graphics | Phaser.GameObjects.Image | Phaser.GameObjects.TileSprite {
+  private createPlatformArtwork(x: number, y: number, width: number, height: number): Phaser.GameObjects.Graphics | Phaser.GameObjects.Image | Phaser.GameObjects.TileSprite | Phaser.GameObjects.Container {
     // Long right-hand ground must NOT stretch the screenshot-like foreground
     // asset: it caused the large blurred rectangle seen in the v0.5 review.
     if (height >= 100 && width > 900 && this.textures.exists('painted-ground-strip')) {
       const top = y - height / 2;
-      return this.add.tileSprite(x, top + 56, width, 112, 'painted-ground-strip').setDepth(0);
+      const left = x - width / 2;
+      const edgeWidth = this.textures.exists('painted-ground-edge') ? 75 : 0;
+      const bodyWidth = width - edgeWidth;
+      const body = this.add.tileSprite(left + edgeWidth + bodyWidth / 2, top - 6 + 56, bodyWidth, 112, 'painted-ground-strip');
+      if (!edgeWidth) return body.setDepth(0);
+      const cliff = this.add.image(left + edgeWidth / 2, top - 6 + 74, 'painted-ground-edge')
+        .setDisplaySize(edgeWidth + 12, 148);
+      // Terrain parts are kept in one visual group; only the invisible
+      // Phaser static body is used for walking/collision.
+      return this.add.container(0, 0, [body, cliff]).setDepth(0);
     }
     const painted = height >= 100 ? 'painted-ground'
       : (this.textures.exists('painted-platform-soft') ? 'painted-platform-soft' : 'painted-platform');
@@ -306,7 +350,7 @@ class NinjaTemple extends Phaser.Scene {
     this.bridge?.enableBody(false, 850, GROUND_Y + 50, true, true);
     this.bridge?.setVisible(false);
     this.bridgeArtwork?.setVisible(true);
-    for (const plate of this.plates) plate.setFillStyle(0x94ffb7, 1);
+    for (const plate of this.plates) plate.setTint(0xb9ffe5);
     if (this.instruction) this.instruction.textContent = 'Most odblokowany! Wspólnie dotrzyjcie do magicznego portalu.';
     this.cameras.main.flash(360, 91, 246, 196, false);
   }
